@@ -87,6 +87,12 @@ class Message(Base):
     user = relationship('User')
     project = relationship('Project')
 
+class UserPhoto(Base):
+    __tablename__ = 'user_photos'
+    user_id = Column(Integer, primary_key=True)  # store telegram user id as int
+    photo_url = Column(String(500))
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -463,9 +469,55 @@ def api_me():
                 redis_client.setex(f'web_st:{st}', 3600, json.dumps(obj))
             except Exception:
                 logger.exception('Не удалось обновить web_st с first_seen')
+        # mirror photo into DB (UserPhoto) to allow avatar API and caching
+        try:
+            if photo:
+                dbp = SessionLocal()
+                try:
+                    # store by numeric telegram id if possible
+                    uid_int = int(tid) if str(tid).isdigit() else None
+                    if uid_int is not None:
+                        existing = dbp.query(UserPhoto).get(uid_int)
+                        now = datetime.utcnow()
+                        if existing:
+                            if existing.photo_url != photo:
+                                existing.photo_url = photo
+                                existing.updated_at = now
+                                dbp.commit()
+                        else:
+                            dbp.add(UserPhoto(user_id=uid_int, photo_url=photo, updated_at=now)); dbp.commit()
+                finally:
+                    dbp.close()
+        except Exception:
+            logger.exception('Mirror user photo failed')
         return jsonify({'telegram_id': u.telegram_id, 'name': u.name or '', 'photo_url': photo, 'first_seen': first_seen})
     finally:
         session.close()
+
+
+@app.route('/api/user/avatars')
+def api_user_avatars():
+    ids_param = request.args.get('ids', '').strip()
+    if not ids_param or SessionLocal is None:
+        return jsonify({'avatars': {}})
+    try:
+        ids = [int(x) for x in ids_param.split(',') if x.strip().isdigit()]
+    except Exception:
+        ids = []
+    if not ids:
+        return jsonify({'avatars': {}})
+    db = SessionLocal()
+    try:
+        rows = db.query(UserPhoto).filter(UserPhoto.user_id.in_(ids)).all()
+        out = {}
+        for r in rows:
+            if r.photo_url:
+                out[str(int(r.user_id))] = r.photo_url
+        resp = jsonify({'avatars': out})
+        resp.headers['Cache-Control'] = 'public, max-age=3600'
+        return resp
+    finally:
+        db.close()
 
 @app.route('/api/project/<int:pid>/message', methods=['POST'])
 def api_send_message(pid):

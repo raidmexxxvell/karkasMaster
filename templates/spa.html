@@ -20,15 +20,13 @@
   <p>Инструкция по использованию бота и приложения.</p>
 </section>
 
-<!-- Splash / loading screen -->
-<div id="splash" aria-hidden="false" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:9999">
-  <div style="text-align:center;max-width:320px;width:100%">
-    <img src="/static/images/logo.png" alt="logo" style="width:120px;height:120px;margin:0 auto;display:block">
-    <div style="margin-top:12px;font-weight:600">Загрузка...</div>
-    <div style="margin-top:12px;background:#eee;border-radius:8px;padding:6px">
-      <div id="splash-bar" style="height:10px;background:#000;width:0%;border-radius:6px;transition:width 300ms ease"></div>
-    </div>
-    <div id="splash-percent" style="margin-top:8px;color:var(--muted)">0%</div>
+<!-- Splash / loading screen (full-screen) -->
+<div id="splash" aria-hidden="false">
+  <div class="splash-inner">
+    <img src="/static/images/logo.png" alt="logo" class="splash-logo">
+    <div class="splash-title">Загрузка...</div>
+    <div class="splash-bar-wrap"><div id="splash-bar" class="splash-bar"></div></div>
+    <div id="splash-percent" class="splash-percent">0%</div>
   </div>
 </div>
 <script>
@@ -103,7 +101,25 @@
       var currentToken = localStorage.getItem('st');
       if(!currentToken){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; resolve(); return; }
       fetch('/api/me?st='+currentToken).then(r=>r.json()).then(d=>{
-        if(d.error){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; resolve(); return; }
+        if(d.error){
+          // try to read Telegram WebApp user as fallback
+          try{
+            if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user){
+              var u = window.Telegram.WebApp.initDataUnsafe.user;
+              var name = (u.first_name||'') + (u.last_name?(' '+u.last_name):'');
+              el.innerHTML = `<div class="profile"><div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div><div class="meta"><div class="name">${name||'Пользователь'}</div><div class="id">telegram: ${u.id}</div></div></div>`;
+            } else {
+              // fallback: show st if it looks like telegram id
+              var st = localStorage.getItem('st');
+              if(st && /^\d+$/.test(st)){
+                el.innerHTML = `<div class="profile"><div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div><div class="meta"><div class="name">Пользователь</div><div class="id">telegram: ${st}</div></div></div>`;
+              } else {
+                el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>';
+              }
+            }
+          }catch(e){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; }
+          resolve(); return;
+        }
         var photo = d.photo_url || '';
         var first = d.first_seen ? new Date(d.first_seen).toLocaleString() : '';
         // create image element and wait for load (with timeout)
@@ -111,7 +127,7 @@
           el.innerHTML = `<div class="profile">` + (src?`<img src="${src}" alt="avatar">`:`<div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div>`) + `<div class="meta"><div class="name">${d.name || 'Пользователь'}</div><div class="id">telegram: ${d.telegram_id}</div><div class="small">Первый вход: ${first}</div></div></div>`;
           resolve();
         }
-        if(photo){
+  if(photo){
           var img = new Image();
           var settled = false;
           var to = setTimeout(()=>{ if(!settled){ settled=true; applyProfile('/static/images/avatar.png'); } }, 4000);
@@ -137,25 +153,24 @@
 async function runSplashLoad(){
   var bar = document.getElementById('splash-bar');
   var pct = document.getElementById('splash-percent');
-  // initial animation to 30%
-  bar.style.width = '30%'; pct.innerText = '30%';
+  var start = Date.now();
+  // start animation to 25%
+  bar.style.width = '25%'; pct.innerText = '25%';
   try{
-    // start loading profile
     await loadProfile();
-    // after profile loaded, advance to 85%
-    bar.style.width = '85%'; pct.innerText = '85%';
-    // small delay to show progress
-    await new Promise(r=>setTimeout(r, 500));
+    // after profile loaded, advance smoothly
+    bar.style.width = '75%'; pct.innerText = '75%';
+    await new Promise(r=>setTimeout(r, 600));
     bar.style.width = '100%'; pct.innerText = '100%';
-    await new Promise(r=>setTimeout(r, 250));
   }catch(e){
-    // still finish
     bar.style.width = '100%'; pct.innerText = '100%';
-    await new Promise(r=>setTimeout(r, 500));
-  } finally{
-    var sp = document.getElementById('splash');
-    if(sp) sp.style.display = 'none';
   }
+  // ensure minimum display time 3s
+  var elapsed = Date.now() - start;
+  var remain = Math.max(0, 3000 - elapsed);
+  await new Promise(r=>setTimeout(r, remain));
+  var sp = document.getElementById('splash');
+  if(sp) sp.style.display = 'none';
 }
 </script>
 {% endblock %}
