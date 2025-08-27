@@ -411,6 +411,24 @@ def webapp_init():
                     photo_url = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}'
             except Exception:
                 logger.exception('Не удалось получить фото профиля через Bot API (webapp/init)')
+        # Mirror photo into DB (UserPhoto) to allow avatar API and caching
+        try:
+            if photo_url and uid_int is not None:
+                dbp = SessionLocal()
+                try:
+                    existing = dbp.query(UserPhoto).get(int(uid_int))
+                    now = datetime.utcnow()
+                    if existing:
+                        if existing.photo_url != photo_url:
+                            existing.photo_url = photo_url
+                            existing.updated_at = now
+                            dbp.commit()
+                    else:
+                        dbp.add(UserPhoto(user_id=int(uid_int), photo_url=photo_url, updated_at=now)); dbp.commit()
+                finally:
+                    dbp.close()
+        except Exception:
+            logger.exception('Mirror user photo failed (webapp/init)')
         return jsonify({'ok': True, 'user': user, 'photo_url': photo_url})
     except Exception:
         logger.exception('webapp/init processing error')

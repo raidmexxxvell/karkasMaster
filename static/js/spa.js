@@ -244,6 +244,33 @@
   }
 
   window.addEventListener('load', async ()=>{
+    // Ensure Telegram WebApp is initialised so initData/initDataUnsafe become available
+    try{
+      if(window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.ready === 'function'){
+        window.Telegram.WebApp.ready();
+      }
+      // If initData is present immediately after ready(), try server-side init to fetch verified data
+      if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData){
+        try{
+          var respInitNow = await fetch('/webapp/init', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({initData: window.Telegram.WebApp.initData})});
+          if(respInitNow && respInitNow.ok){
+            var jnow = await respInitNow.json();
+            if(jnow && jnow.ok){
+              // update quick profile block if exists
+              var el = document.getElementById('profile-block');
+              if(el){
+                var user = jnow.user || {};
+                var pname = user.full_name || (user.first_name? (user.first_name + (user.last_name?(' '+user.last_name):'')) : 'Пользователь');
+                var pusername = user.username ? `<div class="small">@${user.username}</div>` : '';
+                var pphoto = jnow.photo_url || '/static/images/avatar.png';
+                el.innerHTML = `<div class="profile"><img src="${pphoto}" alt="avatar"><div class="meta"><div class="name">${pname}</div>${pusername}<div class="id">telegram: ${user.id||''}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+                try{ if(user.id) localStorage.setItem('tg_id', user.id); }catch(e){}
+              }
+            }
+          }
+        }catch(e){ /* ignore */ }
+      }
+    }catch(e){ /* ignore */ }
     var tokenNow = localStorage.getItem('st');
     if(!tokenNow && window.Telegram && window.Telegram.WebApp && (window.Telegram.WebApp.initData || window.Telegram.WebApp.initDataUnsafe)){
       await telegramExchange();
