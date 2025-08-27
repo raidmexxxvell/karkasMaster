@@ -2,9 +2,9 @@
 {% block content %}
 <h2>Чат проекта: {{ project.title }}</h2>
 <div id="chat" data-project-id="{{ project.id }}">
-  <div id="messages"></div>
-  <form id="msgform">
-    <input id="msgtext" placeholder="Сообщение...">
+  <div id="messages" style="max-height:360px;overflow:auto;border:1px solid var(--border);padding:8px;border-radius:6px;background:transparent"></div>
+  <form id="msgform" style="margin-top:8px;display:flex;gap:8px;align-items:center">
+    <input id="msgtext" placeholder="Сообщение..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px">
     <button>Отправить</button>
   </form>
 </div>

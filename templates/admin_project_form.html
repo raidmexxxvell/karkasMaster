@@ -1,11 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 <h2>{{ 'Создать' if not project else 'Редактировать' }} проект</h2>
-<form method="post">
-  <label>Заголовок: <input name="title" value="{{ project.title if project else '' }}"></label><br>
-  <label>Описание:<br><textarea name="description">{{ project.description if project else '' }}</textarea></label><br>
-  <label>Фото (main url): <input name="main_photo_url" value="{{ project.main_photo_url if project else '' }}"></label><br>
-  <label>Доп. фото (JSON array):<br><textarea name="extra_photos">{{ project.extra_photos_json if project else '[]' }}</textarea></label><br>
-  <button type="submit">Сохранить</button>
+<form method="post" class="container-form">
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:100%">
+    <label>Заголовок: <input name="title" value="{{ project.title if project else '' }}" style="width:100%"></label>
+    <label>Описание:<br><textarea name="description" style="width:100%;min-height:120px">{{ project.description if project else '' }}</textarea></label>
+    <label>Фото (main url): <input name="main_photo_url" value="{{ project.main_photo_url if project else '' }}" style="width:100%"></label>
+    <label>Доп. фото (JSON array):<br><textarea name="extra_photos" style="width:100%;min-height:80px">{{ project.extra_photos_json if project else '[]' }}</textarea></label>
+    <div><button type="submit">Сохранить</button></div>
+  </div>
 </form>
 {% endblock %}

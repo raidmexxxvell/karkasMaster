@@ -2,13 +2,18 @@
 {% block content %}
 <h2>Проекты</h2>
 <a href="/admin/project/new?token={{ token }}">Создать проект</a>
-<ul>
+<div style="display:flex;flex-direction:column;gap:8px">
   {% for p in projects %}
-    <li>
-      <strong>{{ p.title }}</strong> — {{ p.description[:120] }}
-      [<a href="/admin/project/{{ p.id }}?token={{ token }}">Ред.</a>]
-      [<a href="/admin/project/{{ p.id }}/chat?token={{ token }}">Чат</a>]
-    </li>
+    <div style="padding:12px;border:1px solid var(--border);border-radius:6px;background:transparent;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1;min-width:0">
+        <strong>{{ p.title }}</strong>
+        <div style="color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.description[:120] }}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a href="/admin/project/{{ p.id }}?token={{ token }}">Ред.</a>
+        <a href="/admin/project/{{ p.id }}/chat?token={{ token }}">Чат</a>
+      </div>
+    </div>
   {% endfor %}
-</ul>
+</div>
 {% endblock %}

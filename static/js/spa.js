@@ -1,15 +1,32 @@
 // SPA client logic moved from inline template
 (function(){
+  // Initialize socket.io client if available
+  try{ if(typeof io === 'function'){ window.socket = io(); window.socket.on('connect', ()=>{ console.log('socket connected'); });
+      window.socket.on('activity', function(payload){ try{ var b=document.getElementById('notify-badge'); if(b){ b.style.display='inline-block'; b.textContent = (parseInt(b.textContent||'0')+1).toString(); } }catch(e){} });
+      window.socket.on('activity_comment', function(payload){ try{ var b=document.getElementById('notify-badge'); if(b){ b.style.display='inline-block'; b.textContent = (parseInt(b.textContent||'0')+1).toString(); } }catch(e){} });
+      window.socket.on('task_created', function(payload){ try{ var b=document.getElementById('notify-badge'); if(b){ b.style.display='inline-block'; b.textContent = (parseInt(b.textContent||'0')+1).toString(); } }catch(e){} });
+  }}catch(e){}
   function showTab(name){
-    document.querySelectorAll('.tab').forEach(el=>{
-      el.style.display='none';
-      el.style.opacity=0;
+    // Slide animation: determine direction from current hash
+    var current = location.hash.replace('#','') || 'projects';
+    var panels = document.querySelectorAll('.tab');
+    panels.forEach(el=>{
+      el.classList.remove('enter-left','enter-right','active-slide');
       el.setAttribute('aria-hidden','true');
     });
     var panel = document.getElementById('tab-'+name);
     if(panel){
+      // decide enter direction
+      var dir = 'right';
+      try{ var idxNew = Array.from(document.querySelectorAll('.tab-link')).findIndex(b=>b.dataset.tab===name);
+        var idxOld = Array.from(document.querySelectorAll('.tab-link')).findIndex(b=>b.classList.contains('active'));
+        if(idxOld>=0 && idxNew>=0){ dir = (idxNew < idxOld)? 'left':'right'; }
+      }catch(e){ }
       panel.style.display='block';
-      setTimeout(()=>{ panel.style.opacity = 1; }, 20);
+      panel.classList.add(dir==='left' ? 'enter-left' : 'enter-right');
+      // force reflow then activate
+      void panel.offsetWidth;
+      panel.classList.add('active-slide');
       panel.setAttribute('aria-hidden','false');
       panel.focus();
     }
@@ -81,7 +98,96 @@
   function loadProjects(){
     fetch('/api/projects').then(r=>r.json()).then(arr=>{
       const el = document.getElementById('projects-list'); el.innerHTML='';
-      arr.forEach(p=>{ const d=document.createElement('div'); d.innerHTML=`<h3>${p.title}</h3><p>${p.description}</p><button onclick="join(${p.id})">Прикрепиться</button>`; el.appendChild(d); });
+      arr.forEach(p=>{
+        const d=document.createElement('div');
+        d.className='project-card';
+        d.style.padding='12px';
+        d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div style="flex:1;min-width:0"><h3 style="margin:0">${p.title}</h3><div style="color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.description||''}</div></div><div style="margin-left:12px;display:flex;gap:8px"><button data-pid="${p.id}" class="open-project-btn">Открыть</button><button onclick="join(${p.id})">Прикрепиться</button></div></div>`;
+        el.appendChild(d);
+      });
+      document.querySelectorAll('.open-project-btn').forEach(b=>b.addEventListener('click', function(){ loadProjectDetail(parseInt(this.dataset.pid)); }));
+    });
+  }
+
+  // Render a simple project detail area with activities and tasks
+  async function loadProjectDetail(pid){
+    // switch to projects tab and scroll to detail
+    showTab('projects');
+    var parent = document.getElementById('projects-list');
+    // remove existing detail
+    var existing = document.getElementById('project-detail-'+pid);
+    if(existing){ existing.scrollIntoView({behavior:'smooth'}); return; }
+    var wrap = document.createElement('div'); wrap.id = 'project-detail-'+pid; wrap.style.marginTop='12px'; wrap.style.padding='12px'; wrap.style.border='1px solid var(--border)'; wrap.style.borderRadius='8px';
+    wrap.innerHTML = `<h3>Проект ${pid}</h3>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div id="activities-${pid}">Загрузка активности...</div>
+        </div>
+        <div style="width:320px">
+          <div id="tasks-${pid}"><strong>Задачи</strong><div>Загрузка...</div></div>
+        </div>
+      </div>
+      <div style="margin-top:8px"><textarea id="activity-input-${pid}" placeholder="Добавить запись в activity..." style="width:100%;min-height:60px"></textarea>
+      <div style="margin-top:6px;display:flex;gap:8px"><input id="activity-tid-${pid}" placeholder="Ваш telegram id (для тестов)" style="width:200px"><button id="activity-post-${pid}">Добавить</button></div></div>`;
+    parent.insertBefore(wrap, parent.firstChild);
+    wrap.scrollIntoView({behavior:'smooth'});
+    // load activities
+    fetch(`/api/project/${pid}/activities`).then(r=>r.json()).then(arr=>{
+      var ael = document.getElementById('activities-'+pid); ael.innerHTML='';
+      arr.forEach(a=>{
+        var it = document.createElement('div'); it.style.padding='8px 0'; it.innerHTML = `<div style="font-weight:600">${a.actor||'Система'}</div><div style="color:var(--muted);font-size:13px">${new Date(a.created_at).toLocaleString()}</div><div style="margin-top:6px">${a.text}</div><div style="margin-top:6px"><a href="#" data-aid="${a.id}" class="open-comments">Комментарии</a></div>`;
+        ael.appendChild(it);
+      });
+      // attach comment toggles
+      document.querySelectorAll(`#activities-${pid} .open-comments`).forEach(el=>el.addEventListener('click', function(e){ e.preventDefault(); var aid=this.dataset.aid; openComments(pid, aid); }));
+    });
+    // load tasks
+    fetch(`/api/project/${pid}/tasks`).then(r=>r.json()).then(arr=>{
+      var tel = document.getElementById('tasks-'+pid); tel.innerHTML = '<strong>Задачи</strong>';
+      var list = document.createElement('div'); list.style.display='flex'; list.style.flexDirection='column'; list.style.gap='8px';
+      arr.forEach(t=>{
+        var it = document.createElement('div'); it.style.padding='8px'; it.style.border='1px solid rgba(255,255,255,0.03)'; it.style.borderRadius='6px'; it.innerHTML = `<div style="font-weight:600">${t.title}</div><div style="color:var(--muted)">Статус: ${t.status} ${t.assignee_id?('• @'+t.assignee_id):''}</div>`;
+        list.appendChild(it);
+      });
+      // add create task form
+      var form = document.createElement('div'); form.style.marginTop='8px'; form.innerHTML = `<input id="task-title-${pid}" placeholder="Название задачи" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"><input id="task-assignee-${pid}" placeholder="Assignee tg id" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-top:6px"><button id="task-create-${pid}" style="margin-top:6px">Создать задачу</button>`;
+      tel.appendChild(list); tel.appendChild(form);
+      document.getElementById('task-create-'+pid).addEventListener('click', async ()=>{
+        var title = document.getElementById('task-title-'+pid).value;
+        var ass = document.getElementById('task-assignee-'+pid).value;
+        if(!title) return alert('Введите название');
+        var res = await fetch(`/api/project/${pid}/tasks`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({title: title, assignee_telegram_id: ass})});
+        if(res.ok){ loadProjectDetail(pid); }
+      });
+    });
+    // hook up post activity
+    document.getElementById('activity-post-'+pid).addEventListener('click', async ()=>{
+      var txt = document.getElementById('activity-input-'+pid).value;
+      var tid = document.getElementById('activity-tid-'+pid).value;
+      if(!txt) return alert('Введите текст');
+      await fetch(`/api/project/${pid}/activity`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: txt, telegram_id: tid})});
+      document.getElementById('activity-input-'+pid).value='';
+      document.getElementById('activity-tid-'+pid).value='';
+      loadProjectDetail(pid);
+    });
+    // listen for socketio events (if socket connected earlier)
+    try{ if(window.socket){ window.socket.emit('join', {project_id: pid}); }
+    }catch(e){}
+  }
+
+  function openComments(pid, aid){
+    var ael = document.getElementById('activities-'+pid);
+    var node = Array.from(ael.children).find(n=> n.querySelector && n.querySelector('[data-aid]') && n.querySelector('[data-aid]').dataset.aid==aid);
+    if(!node){ alert('Найти комментарии не удалось'); return; }
+    // insert simple comments UI
+    var cbox = document.createElement('div'); cbox.style.marginTop='8px'; cbox.innerHTML = `<div id="comments-${aid}">Загрузка...</div><textarea id="comment-input-${aid}" style="width:100%;min-height:60px"></textarea><input id="comment-tid-${aid}" placeholder="Ваш telegram id"><button id="comment-post-${aid}">Комментировать</button>`;
+    node.appendChild(cbox);
+    // load comments via socket? no direct endpoint, reuse ActivityComment DB via a new minimal endpoint (not implemented) — use fallback: show placeholder
+    document.getElementById('comment-post-'+aid).addEventListener('click', async ()=>{
+      var txt = document.getElementById('comment-input-'+aid).value; var tid = document.getElementById('comment-tid-'+aid).value; if(!txt||!tid) return alert('Введите текст и ваш tg id');
+      await fetch(`/api/activity/${aid}/comment`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: txt, telegram_id: tid})});
+      // quick refresh
+      loadProjectDetail(pid);
     });
   }
 
@@ -116,7 +222,9 @@
           var name = (u.first_name||'') + (u.last_name?(' '+u.last_name):'');
           var usernameHtml = u.username ? `<div class="small">@${u.username}</div>` : '';
           var photo = u.photo_url || '/static/images/avatar.png';
-          el.innerHTML = `<div class="profile"><img src="${photo}" alt="avatar"><div class="meta"><div class="name">${name||'Пользователь'}</div>${usernameHtml}<div class="id">telegram: ${u.id}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+          el.innerHTML = `<div class="profile"><div class="avatar-wrap"><div class="skeleton circle" id="skeleton-avatar" style="width:72px;height:72px"></div><img id="profile-avatar-img" style="display:none;width:72px;height:72px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,0.06)" src="${photo}" alt="avatar"></div><div class="meta"><div class="name">${name||'Пользователь'}</div>${usernameHtml}<div class="id">telegram: ${u.id}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+          // replace skeleton when loaded
+          loadImageWithSkeleton(document.getElementById('profile-avatar-img'), document.getElementById('skeleton-avatar'));
           try{ if(u.id) localStorage.setItem('tg_id', u.id); }catch(e){}
         }
       }catch(e){ /* ignore */ }
@@ -137,7 +245,8 @@
                   var pname = user.full_name || (user.first_name? (user.first_name + (user.last_name?(' '+user.last_name):'')) : 'Пользователь');
                   var pusername = user.username ? `<div class="small">@${user.username}</div>` : '';
                   var pphoto = jw.photo_url || '/static/images/avatar.png';
-                  el.innerHTML = `<div class="profile"><img src="${pphoto}" alt="avatar"><div class="meta"><div class="name">${pname}</div>${pusername}<div class="id">telegram: ${user.id||''}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+                  el.innerHTML = `<div class="profile"><div class="avatar-wrap"><div class="skeleton circle" id="skeleton-avatar" style="width:72px;height:72px"></div><img id="profile-avatar-img" style="display:none;width:72px;height:72px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,0.06)" src="${pphoto}" alt="avatar"></div><div class="meta"><div class="name">${pname}</div>${pusername}<div class="id">telegram: ${user.id||''}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+                  loadImageWithSkeleton(document.getElementById('profile-avatar-img'), document.getElementById('skeleton-avatar'));
                   if(user.id) try{ localStorage.setItem('tg_id', user.id); }catch(e){}
                   resolve();
                   return;
@@ -275,11 +384,21 @@
     if(!tokenNow && window.Telegram && window.Telegram.WebApp && (window.Telegram.WebApp.initData || window.Telegram.WebApp.initDataUnsafe)){
       await telegramExchange();
     }
+    // If bottom navigation exists, expose its height via CSS var and add body class
+    try{
+      var gNav = document.getElementById('global-bottom-nav');
+      if(gNav){
+        var rect = gNav.getBoundingClientRect();
+        var h = Math.ceil(rect.height) + 8; // small buffer
+        document.documentElement.style.setProperty('--bottom-nav-height', h + 'px');
+        document.body.classList.add('with-bottom-nav');
+      }
+    }catch(e){/* ignore */}
     var hash = location.hash.replace('#','') || 'projects';
     showTab(hash);
     document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', function(e){ showTab(this.dataset.tab); }));
     loadProjects();
-    await runSplashLoad();
+  await runSplashLoad();
 
     // Обработчик кнопки обновления профиля
     var refreshBtn = document.getElementById('refresh-profile');
@@ -296,6 +415,7 @@
   async function runSplashLoad(){
     var bar = document.getElementById('splash-bar');
     var pct = document.getElementById('splash-percent');
+  try{ document.body.classList.add('splash-open'); }catch(e){}
     var start = Date.now();
     bar.style.width = '25%'; pct.innerText = '25%';
     try{
@@ -310,6 +430,22 @@
     var remain = Math.max(0, 3000 - elapsed);
     await new Promise(r=>setTimeout(r, remain));
     var sp = document.getElementById('splash');
-    if(sp) sp.style.display = 'none';
+    if(sp){
+      // ensure transition has time to run then fully hide
+      sp.classList.add('splash-hidden');
+      try{ document.body.classList.remove('splash-open'); }catch(e){}
+      // remove pointer events and then remove element after transition
+      setTimeout(function(){ try{ sp.style.display='none'; sp.style.pointerEvents='none'; }catch(e){} }, 600);
+    }
+  }
+
+  // Helper: load image and remove skeleton on load or after timeout
+  function loadImageWithSkeleton(imgEl, skeletonEl){
+    if(!imgEl) return;
+    var t = setTimeout(function(){ // fallback in 3s
+      try{ if(skeletonEl) skeletonEl.style.display='none'; if(imgEl) imgEl.style.display='block'; }catch(e){}
+    }, 3000);
+    imgEl.onload = function(){ clearTimeout(t); try{ if(skeletonEl) skeletonEl.style.display='none'; imgEl.style.display='block'; }catch(e){} };
+    imgEl.onerror = function(){ clearTimeout(t); try{ if(skeletonEl) skeletonEl.style.background='#333'; skeletonEl.style.display='block'; imgEl.style.display='none'; }catch(e){} };
   }
 })();

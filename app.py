@@ -96,6 +96,43 @@ class UserPhoto(Base):
     photo_url = Column(String(500))
     updated_at = Column(DateTime, default=datetime.utcnow)
 
+
+class Activity(Base):
+    __tablename__ = 'activities'
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), index=True)
+    actor_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    type = Column(String(64), default='note')  # note, task_created, status_changed, message
+    text = Column(Text)
+    metadata = Column(Text)  # JSON as text for simple extensibility
+    created_at = Column(DateTime, default=datetime.utcnow)
+    project = relationship('Project')
+    actor = relationship('User')
+
+
+class ActivityComment(Base):
+    __tablename__ = 'activity_comments'
+    id = Column(Integer, primary_key=True)
+    activity_id = Column(Integer, ForeignKey('activities.id'), index=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    text = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    activity = relationship('Activity')
+    user = relationship('User')
+
+
+class Task(Base):
+    __tablename__ = 'tasks'
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), index=True)
+    title = Column(String(300))
+    status = Column(String(32), default='open')
+    assignee_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    project = relationship('Project')
+    assignee = relationship('User')
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -667,6 +704,149 @@ def api_send_message(pid):
         recipients = {session.query(User).get(mem.user_id).telegram_id for mem in members}
         notify_queue.put((pid, text, recipients))
         return jsonify({'ok': True, 'message': payload})
+    finally:
+        session.close()
+
+
+def parse_mentions(text):
+    # simple mentions: @123456 (telegram id) or @username (not resolved here)
+    if not text:
+        return set()
+    import re
+    ids = set()
+    for m in re.findall(r'@([0-9]{5,})', text):
+        ids.add(m)
+    return ids
+
+
+@app.route('/api/project/<int:pid>/activities')
+def api_get_activities(pid):
+    limit = int(request.args.get('limit', 50))
+    session = SessionLocal()
+    try:
+        acts = session.query(Activity).filter_by(project_id=pid).order_by(Activity.created_at.desc()).limit(limit).all()
+        out = []
+        for a in acts:
+            out.append({'id': a.id, 'type': a.type, 'text': a.text, 'metadata': json.loads(a.metadata or '{}') if a.metadata else {}, 'actor': (a.actor.name if a.actor else None), 'created_at': a.created_at.isoformat()})
+        return jsonify(out)
+    finally:
+        session.close()
+
+
+@app.route('/api/project/<int:pid>/activity', methods=['POST'])
+def api_create_activity(pid):
+    data = request.json or {}
+    actor_tid = data.get('telegram_id')
+    text = data.get('text')
+    typ = data.get('type', 'note')
+    meta = data.get('metadata') or {}
+    session = SessionLocal()
+    try:
+        actor = None
+        if actor_tid:
+            actor = get_or_create_user(actor_tid)
+        a = Activity(project_id=pid, actor_user_id=(actor.id if actor else None), type=typ, text=text, metadata=json.dumps(meta))
+        session.add(a); session.commit()
+        payload = {'id': a.id, 'project_id': pid, 'type': a.type, 'text': a.text, 'actor': actor.name if actor else None, 'created_at': a.created_at.isoformat()}
+        socketio.emit('activity', payload, room=f'project_{pid}')
+        # mention notifications
+        mentions = parse_mentions(text)
+        if mentions:
+            notify_queue.put((pid, f'Упоминание в проекте {pid}: {text[:120]}', mentions))
+        # also notify project members
+        members = session.query(Membership).filter_by(project_id=pid).all()
+        recipients = {session.query(User).get(mem.user_id).telegram_id for mem in members}
+        notify_queue.put((pid, text, recipients))
+        return jsonify({'ok': True, 'activity': payload})
+    finally:
+        session.close()
+
+
+@app.route('/api/activity/<int:aid>/comment', methods=['POST'])
+def api_create_comment(aid):
+    data = request.json or {}
+    tid = data.get('telegram_id')
+    text = data.get('text')
+    if not text or not tid:
+        return jsonify({'error': 'missing fields'}), 400
+    session = SessionLocal()
+    try:
+        a = session.query(Activity).get(aid)
+        if not a:
+            return jsonify({'error': 'activity not found'}), 404
+        user = get_or_create_user(tid)
+        c = ActivityComment(activity_id=aid, user_id=user.id, text=text)
+        session.add(c); session.commit()
+        payload = {'id': c.id, 'activity_id': aid, 'user': user.name, 'text': text, 'created_at': c.created_at.isoformat()}
+        socketio.emit('activity_comment', payload, room=f'project_{a.project_id}')
+        # mentions
+        mentions = parse_mentions(text)
+        if mentions:
+            notify_queue.put((a.project_id, f'Упоминание в комментарии проекта {a.project_id}: {text[:120]}', mentions))
+        return jsonify({'ok': True, 'comment': payload})
+    finally:
+        session.close()
+
+
+@app.route('/api/project/<int:pid>/tasks', methods=['GET','POST'])
+def api_tasks(pid):
+    session = SessionLocal()
+    try:
+        if request.method == 'GET':
+            tasks = session.query(Task).filter_by(project_id=pid).order_by(Task.created_at.asc()).all()
+            out = [{'id': t.id, 'title': t.title, 'status': t.status, 'assignee_id': (t.assignee.telegram_id if t.assignee else None), 'created_at': t.created_at.isoformat()} for t in tasks]
+            return jsonify(out)
+        else:
+            data = request.json or {}
+            title = data.get('title')
+            assignee_tid = data.get('assignee_telegram_id')
+            if not title:
+                return jsonify({'error':'missing title'}), 400
+            assignee = None
+            if assignee_tid:
+                assignee = get_or_create_user(assignee_tid)
+            t = Task(project_id=pid, title=title, assignee_id=(assignee.id if assignee else None))
+            session.add(t); session.commit()
+            payload = {'id': t.id, 'title': t.title, 'status': t.status, 'assignee_id': (assignee.telegram_id if assignee else None), 'created_at': t.created_at.isoformat()}
+            socketio.emit('task_created', payload, room=f'project_{pid}')
+            # add an activity entry
+            a = Activity(project_id=pid, actor_user_id=(assignee.id if assignee else None), type='task_created', text=f'Task: {title}', metadata=json.dumps({'task_id': t.id}))
+            session.add(a); session.commit()
+            # notify members
+            members = session.query(Membership).filter_by(project_id=pid).all()
+            recipients = {session.query(User).get(mem.user_id).telegram_id for mem in members}
+            notify_queue.put((pid, f'Новая задача в проекте {pid}: {title}', recipients))
+            return jsonify({'ok': True, 'task': payload})
+    finally:
+        session.close()
+
+
+@app.route('/api/task/<int:tid>', methods=['POST'])
+def api_update_task(tid):
+    data = request.json or {}
+    status = data.get('status')
+    assignee_tid = data.get('assignee_telegram_id')
+    session = SessionLocal()
+    try:
+        t = session.query(Task).get(tid)
+        if not t:
+            return jsonify({'error':'not found'}), 404
+        if status:
+            t.status = status
+        if assignee_tid:
+            assignee = get_or_create_user(assignee_tid)
+            t.assignee_id = assignee.id
+        session.commit()
+        payload = {'id': t.id, 'title': t.title, 'status': t.status, 'assignee_id': (t.assignee.telegram_id if t.assignee else None)}
+        socketio.emit('task_updated', payload, room=f'project_{t.project_id}')
+        # activity log
+        a = Activity(project_id=t.project_id, actor_user_id=(t.assignee_id if t.assignee_id else None), type='task_updated', text=f'Task updated: {t.title}', metadata=json.dumps({'task_id': t.id}))
+        session.add(a); session.commit()
+        # notify members
+        members = session.query(Membership).filter_by(project_id=t.project_id).all()
+        recipients = {session.query(User).get(mem.user_id).telegram_id for mem in members}
+        notify_queue.put((t.project_id, f'Задача обновлена: {t.title}', recipients))
+        return jsonify({'ok': True, 'task': payload})
     finally:
         session.close()
 

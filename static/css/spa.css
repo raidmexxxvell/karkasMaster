@@ -1,19 +1,89 @@
 /* SPA-specific styles: splash and bottom navigation */
-#splash{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(2,6,23,0.9));z-index:9999}
-#splash .splash-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px}
-#splash .splash-logo{width:120px;height:120px;object-fit:contain}
-#splash .splash-title{font-size:20px;font-weight:700;color:var(--text)}
-#splash .splash-bar-wrap{background:rgba(255,255,255,0.03);height:12px;border-radius:999px;width:260px;padding:3px;margin-top:8px}
-#splash .splash-bar{height:12px;background:linear-gradient(90deg,#7c3aed,#06b6d4);width:0%;border-radius:999px;transition:width 700ms cubic-bezier(.2,.9,.1,1)}
+:root{
+	--spa-transition: 260ms;
+	--spa-ease: cubic-bezier(.2,.9,.1,1);
+	--bottom-nav-height: 0px; /* updated by JS when nav mounts */
+}
+
+/* Full-screen splash overlay */
+#splash{
+	position:fixed;
+	inset:0;
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	z-index:100000;
+	background:linear-gradient(180deg, rgba(0,0,0,0.95), rgba(2,6,23,0.98));
+	transition:opacity 400ms var(--spa-ease), visibility 400ms var(--spa-ease);
+	opacity:1;
+	visibility:visible;
+	pointer-events:auto;
+}
+#splash.splash-hidden{opacity:0;visibility:hidden;pointer-events:none}
+#splash .splash-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;max-width:480px;width:80%;text-align:center}
+#splash .splash-logo{width:96px;height:96px;object-fit:contain;border-radius:12px}
+#splash .splash-title{font-size:20px;font-weight:700;color:var(--text);margin-top:4px}
+#splash .splash-bar-wrap{background:rgba(255,255,255,0.03);height:12px;border-radius:999px;width:280px;padding:3px;margin-top:12px}
+#splash .splash-bar{height:12px;background:linear-gradient(90deg,#7c3aed,#06b6d4);width:0%;border-radius:999px;transition:width 700ms var(--spa-ease)}
 #splash .splash-percent{margin-top:6px;color:var(--muted)}
 
-/* Bottom navigation for mobile/webview (improved) */
-.bottom-nav{position:fixed;left:12px;right:12px;bottom:18px;display:flex;gap:10px;justify-content:center;padding:10px;pointer-events:auto}
-.bottom-nav .tab-link{background:rgba(255,255,255,0.03);color:#fff;border-radius:8px;padding:18px 12px;border:0;min-width:160px;text-align:center;flex:1;font-weight:600}
+/* Prevent body scroll while splash visible */
+body.splash-open{overflow:hidden}
+
+/* When bottom nav is visible, add extra bottom padding to container so nothing is overlapped */
+body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-height));}
+
+/* Bottom navigation for mobile/webview (tile style) */
+.bottom-nav{
+	position:fixed;
+	bottom:12px;
+	left:50%;
+	transform:translateX(-50%);
+	display:flex;
+	gap:8px;
+	justify-content:center;
+	padding:8px;
+	pointer-events:auto;
+	max-width:1000px; /* match .container max-width */
+	width:calc(100% - 48px);
+	box-sizing:border-box;
+	border-radius:12px;
+	background:linear-gradient(180deg, rgba(10,12,16,0.6), rgba(6,8,12,0.55));
+	backdrop-filter:blur(6px);
+	box-shadow:0 10px 30px rgba(0,0,0,0.45);
+}
+.bottom-nav .tab-link{
+	background:rgba(255,255,255,0.03);
+	color:var(--text);
+	border-radius:8px;
+	padding:12px 14px;
+	border:0;
+	min-width:120px;
+	text-align:center;
+	flex:0 0 auto;
+	font-weight:600;
+	transition:transform var(--spa-transition) var(--spa-ease), box-shadow var(--spa-transition) var(--spa-ease), background var(--spa-transition) var(--spa-ease);
+}
 .bottom-nav .tab-link:active{opacity:0.95}
-.bottom-nav .tab-link.active{box-shadow:0 10px 30px rgba(0,0,0,0.6);transform:translateY(-4px);background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))}
+.bottom-nav .tab-link.active{box-shadow:0 8px 24px rgba(0,0,0,0.5);transform:translateY(-3px);background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))}
 .bottom-nav .tab-link span{display:block}
 
-/* Desktop-like grid appearance */
-.bottom-nav{max-width:980px;margin:0 auto;border-radius:10px}
-.bottom-nav .tab-link{font-size:14px}
+/* Responsive: on very narrow screens allow horizontal scroll */
+@media (max-width:520px){
+	.bottom-nav{width:calc(100% - 24px);left:12px;transform:none}
+	.bottom-nav{overflow-x:auto}
+	.bottom-nav .tab-link{min-width:110px;padding:10px}
+}
+
+/* Tabs slide animation */
+.tab-panel-wrap{position:relative;overflow:hidden}
+.tab{position:relative;transition:transform var(--spa-transition) var(--spa-ease), opacity var(--spa-transition) var(--spa-ease)}
+.tab.enter-left{transform:translateX(-8%);opacity:0}
+.tab.enter-right{transform:translateX(8%);opacity:0}
+.tab.active-slide{transform:translateX(0);opacity:1}
+
+/* Skeleton placeholder for avatars and large images */
+.skeleton{background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06), rgba(255,255,255,0.03));background-size:200% 100%;animation:shimmer 1.2s linear infinite;border-radius:8px}
+.skeleton.circle{border-radius:50%}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
