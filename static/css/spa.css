@@ -9,7 +9,11 @@
 
 /* Bottom navigation for mobile/webview (improved) */
 .bottom-nav{position:fixed;left:12px;right:12px;bottom:18px;display:flex;gap:10px;justify-content:center;padding:10px;pointer-events:auto}
-.bottom-nav .tab-link{background:rgba(255,255,255,0.03);color:#fff;border-radius:12px;padding:10px 14px;border:0;min-width:80px;text-align:center}
+.bottom-nav .tab-link{background:rgba(255,255,255,0.03);color:#fff;border-radius:8px;padding:18px 12px;border:0;min-width:160px;text-align:center;flex:1;font-weight:600}
 .bottom-nav .tab-link:active{opacity:0.95}
-.bottom-nav .tab-link.active{box-shadow:0 10px 30px rgba(0,0,0,0.6);transform:translateY(-4px);background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))}
+.bottom-nav .tab-link.active{box-shadow:0 10px 30px rgba(0,0,0,0.6);transform:translateY(-4px);background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))}
 .bottom-nav .tab-link span{display:block}
+
+/* Desktop-like grid appearance */
+.bottom-nav{max-width:980px;margin:0 auto;border-radius:10px}
+.bottom-nav .tab-link{font-size:14px}

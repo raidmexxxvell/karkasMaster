@@ -17,9 +17,30 @@
   <footer>Бот каркас — панель администрирования</footer>
 </div>
 
-<!-- Нижнее меню скрыто по желанию: удалено для чистого WebApp интерфейса -->
+<!-- Глобальное нижнее меню: плитки навигации для WebApp -->
+<nav class="bottom-nav" id="global-bottom-nav" role="tablist" aria-label="Основная навигация">
+  <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="projects" aria-controls="tab-projects"><span>Проекты</span></button>
+  <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="profile" aria-controls="tab-profile"><span>Мой профиль</span></button>
+  <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="chats" aria-controls="tab-chats"><span>Чаты</span></button>
+  <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="help" aria-controls="tab-help"><span>Помощь</span></button>
+</nav>
 
-{% block extra_scripts %}{% endblock %}
+{% block extra_scripts %}
+  <script>
+    (function(){
+      // Показывать нижнее меню только если WebApp доступен внутри Telegram
+      try{
+        var nav = document.getElementById('global-bottom-nav');
+        if(!nav) return;
+        if(!(window.Telegram && window.Telegram.WebApp)){
+          nav.style.display = 'none';
+        }
+      }catch(e){
+        try{ if(document.getElementById('global-bottom-nav')) document.getElementById('global-bottom-nav').style.display='none'; }catch(err){}
+      }
+    })();
+  </script>
+{% endblock %}
 
 </body>
 </html>
