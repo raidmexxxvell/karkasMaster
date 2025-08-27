@@ -12,9 +12,16 @@ services:
     # Если вам нужно задать диск или расширенные параметры инстанса,
     # используйте интерфейс Render или специальные поля Blueprint согласно документации.
     envVars:
+      # Значения задать в Render Dashboard (оставлены пустые плейсхолдеры для валидации Blueprint)
       - key: BOT_TOKEN
+        value: ""
       - key: DATABASE_URL
+        value: ""
       - key: REDIS_URL
+        value: ""
       - key: OWNER_TELEGRAM_ID
+        value: ""
       - key: INITIAL_ADMINS
+        value: ""
       - key: APP_URL
+        value: ""
