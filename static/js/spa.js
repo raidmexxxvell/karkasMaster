@@ -113,11 +113,21 @@
   async function loadProjectDetail(pid){
     // switch to projects tab and scroll to detail
     showTab('projects');
+    // Ensure a single project-detail container exists inside the projects tab
     var parent = document.getElementById('projects-list');
-    // remove existing detail
+    var detailContainer = document.getElementById('project-detail-container');
+    if(!detailContainer){
+      detailContainer = document.createElement('div');
+      detailContainer.id = 'project-detail-container';
+      detailContainer.style.marginTop = '12px';
+      parent.insertBefore(detailContainer, parent.firstChild);
+    }
+    // If same detail is already open, just scroll to it
     var existing = document.getElementById('project-detail-'+pid);
     if(existing){ existing.scrollIntoView({behavior:'smooth'}); return; }
-    var wrap = document.createElement('div'); wrap.id = 'project-detail-'+pid; wrap.style.marginTop='12px'; wrap.style.padding='12px'; wrap.style.border='1px solid var(--border)'; wrap.style.borderRadius='8px';
+    // remove any previously rendered detail and render this one
+    detailContainer.innerHTML = '';
+    var wrap = document.createElement('div'); wrap.id = 'project-detail-'+pid; wrap.style.padding='12px'; wrap.style.border='1px solid var(--border)'; wrap.style.borderRadius='8px';
     wrap.innerHTML = `<h3>Проект ${pid}</h3>
       <div style="display:flex;gap:16px;align-items:flex-start">
         <div style="flex:1;min-width:0">
@@ -129,7 +139,7 @@
       </div>
       <div style="margin-top:8px"><textarea id="activity-input-${pid}" placeholder="Добавить запись в activity..." style="width:100%;min-height:60px"></textarea>
       <div style="margin-top:6px;display:flex;gap:8px"><input id="activity-tid-${pid}" placeholder="Ваш telegram id (для тестов)" style="width:200px"><button id="activity-post-${pid}">Добавить</button></div></div>`;
-    parent.insertBefore(wrap, parent.firstChild);
+    detailContainer.appendChild(wrap);
     wrap.scrollIntoView({behavior:'smooth'});
     // load activities
     fetch(`/api/project/${pid}/activities`).then(r=>r.json()).then(arr=>{
@@ -161,7 +171,10 @@
       });
     });
     // hook up post activity
-    document.getElementById('activity-post-'+pid).addEventListener('click', async ()=>{
+    var postBtn = document.getElementById('activity-post-'+pid);
+    if(postBtn){
+      postBtn.removeEventListener && postBtn.removeEventListener('click', ()=>{});
+      postBtn.addEventListener('click', async ()=>{
       var txt = document.getElementById('activity-input-'+pid).value;
       var tid = document.getElementById('activity-tid-'+pid).value;
       if(!txt) return alert('Введите текст');
@@ -169,7 +182,8 @@
       document.getElementById('activity-input-'+pid).value='';
       document.getElementById('activity-tid-'+pid).value='';
       loadProjectDetail(pid);
-    });
+      });
+    }
     // listen for socketio events (if socket connected earlier)
     try{ if(window.socket){ window.socket.emit('join', {project_id: pid}); }
     }catch(e){}

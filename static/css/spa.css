@@ -3,6 +3,7 @@
 	--spa-transition: 260ms;
 	--spa-ease: cubic-bezier(.2,.9,.1,1);
 	--bottom-nav-height: 0px; /* updated by JS when nav mounts */
+	--container-max-width: 1000px; /* keep in sync with .container max-width */
 }
 
 /* Full-screen splash overlay */
@@ -44,8 +45,9 @@ body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-heig
 	justify-content:center;
 	padding:8px;
 	pointer-events:auto;
-	max-width:1000px; /* match .container max-width */
-	width:calc(100% - 48px);
+	/* keep nav within app container width and never exceed viewport */
+	max-width:var(--container-max-width);
+	width:min(100%, calc(var(--container-max-width)) );
 	box-sizing:border-box;
 	border-radius:12px;
 	background:linear-gradient(180deg, rgba(10,12,16,0.6), rgba(6,8,12,0.55));
@@ -70,7 +72,7 @@ body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-heig
 
 /* Responsive: on very narrow screens allow horizontal scroll */
 @media (max-width:520px){
-	.bottom-nav{width:calc(100% - 24px);left:12px;transform:none}
+	.bottom-nav{width:min(100%, calc(var(--container-max-width))); /* keep responsive */}
 	.bottom-nav{overflow-x:auto}
 	.bottom-nav .tab-link{min-width:110px;padding:10px}
 }
