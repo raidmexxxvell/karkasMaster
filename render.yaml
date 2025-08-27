@@ -9,18 +9,12 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn -k eventlet -w 1 app:app"
     autoDeploy: true
-    disk: 512
-    instanceCount: 1
+    # Если вам нужно задать диск или расширенные параметры инстанса,
+    # используйте интерфейс Render или специальные поля Blueprint согласно документации.
     envVars:
       - key: BOT_TOKEN
-        sync: false
       - key: DATABASE_URL
-        sync: false
       - key: REDIS_URL
-        sync: false
       - key: OWNER_TELEGRAM_ID
-        sync: false
       - key: INITIAL_ADMINS
-        sync: false
       - key: APP_URL
-        sync: false
