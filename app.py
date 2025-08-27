@@ -441,7 +441,16 @@ def api_me():
         u = session.query(User).filter_by(telegram_id=str(tid)).first()
         if not u:
             return jsonify({'error':'user not found'}), 404
-        return jsonify({'telegram_id': u.telegram_id, 'name': u.name or '', 'photo_url': photo})
+        # ensure first_seen timestamp is present in redis entry
+        first_seen = obj.get('first_seen')
+        if not first_seen and redis_client:
+            first_seen = datetime.utcnow().isoformat()
+            obj['first_seen'] = first_seen
+            try:
+                redis_client.setex(f'web_st:{st}', 3600, json.dumps(obj))
+            except Exception:
+                logger.exception('Не удалось обновить web_st с first_seen')
+        return jsonify({'telegram_id': u.telegram_id, 'name': u.name or '', 'photo_url': photo, 'first_seen': first_seen})
     finally:
         session.close()
 

@@ -13,6 +13,11 @@ nav{display:flex;gap:8px;margin-bottom:14px}
 button{background:#000;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
 button.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}
 .tab{padding:8px 0}
+#tab-projects, #tab-profile, #tab-chats, #tab-help{transition:opacity 220ms ease-in-out}
+.tab[aria-hidden="true"]{display:none}
+.tab[aria-hidden="false"]{display:block}
+
+.tab:focus{outline:2px solid #000;outline-offset:4px}
 #projects-list > div{padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 #projects-list h3{margin:0;font-size:16px}
 #projects-list p{margin:6px 0;color:var(--muted)}
@@ -26,3 +31,9 @@ button.secondary{background:transparent;color:var(--text);border:1px solid var(-
 .profile .id{color:var(--muted);font-size:13px}
 .small{font-size:13px;color:var(--muted)}
 .footer{margin-top:18px;color:var(--muted);font-size:13px}
+/* Bottom navigation for mobile/webview */
+.bottom-nav{position:fixed;left:0;right:0;bottom:8px;display:flex;gap:8px;justify-content:center;padding:8px}
+.bottom-nav .tab-link{background:#000;color:#fff;border-radius:10px;padding:10px 14px;border:0}
+.bottom-nav .tab-link:active{opacity:0.9}
+.bottom-nav .tab-link.active{box-shadow:0 4px 10px rgba(0,0,0,0.15);transform:translateY(-2px)}
+.bottom-nav .tab-link span{display:block}
