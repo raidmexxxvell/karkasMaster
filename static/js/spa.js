@@ -109,18 +109,48 @@
     return new Promise(async (resolve, reject)=>{
       var el = document.getElementById('profile-block');
       var currentToken = localStorage.getItem('st');
+      // Quick render from Telegram.WebApp.initDataUnsafe for instant UX
+      try{
+        if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user){
+          var u = window.Telegram.WebApp.initDataUnsafe.user;
+          var name = (u.first_name||'') + (u.last_name?(' '+u.last_name):'');
+          var usernameHtml = u.username ? `<div class="small">@${u.username}</div>` : '';
+          var photo = u.photo_url || '/static/images/avatar.png';
+          el.innerHTML = `<div class="profile"><img src="${photo}" alt="avatar"><div class="meta"><div class="name">${name||'Пользователь'}</div>${usernameHtml}<div class="id">telegram: ${u.id}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+          try{ if(u.id) localStorage.setItem('tg_id', u.id); }catch(e){}
+        }
+      }catch(e){ /* ignore */ }
       if(!currentToken){
         // Попытка обмена через Telegram Web App
         var newSt = await telegramExchange();
         if(newSt){
           currentToken = newSt;
         } else {
+          // If WebApp is present, try server-side init to get verified user/photo
+          if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData){
+            try{
+              var resp = await fetch('/webapp/init', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({initData: window.Telegram.WebApp.initData})});
+              if(resp && resp.ok){
+                var jw = await resp.json();
+                if(jw && jw.ok){
+                  var user = jw.user || {};
+                  var pname = user.full_name || (user.first_name? (user.first_name + (user.last_name?(' '+user.last_name):'')) : 'Пользователь');
+                  var pusername = user.username ? `<div class="small">@${user.username}</div>` : '';
+                  var pphoto = jw.photo_url || '/static/images/avatar.png';
+                  el.innerHTML = `<div class="profile"><img src="${pphoto}" alt="avatar"><div class="meta"><div class="name">${pname}</div>${pusername}<div class="id">telegram: ${user.id||''}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+                  if(user.id) try{ localStorage.setItem('tg_id', user.id); }catch(e){}
+                  resolve();
+                  return;
+                }
+              }
+            }catch(e){ console.warn('webapp init failed', e); }
+          }
           el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>';
           resolve();
           return;
         }
       }
-      fetch('/api/me?st='+currentToken).then(r=>r.json()).then(d=>{
+  fetch('/api/me?st='+currentToken).then(r=>r.json()).then(async d=>{
         if(d.error){
           // Токен истек, попробуем обновить через Telegram Web App
           telegramExchange().then(newSt=>{
@@ -172,12 +202,32 @@
             btn.onclick = async function(){
               btn.disabled = true;
               btn.textContent = 'Обновление...';
-              // Принудительно обновить профиль через Telegram WebApp
-              await telegramExchange();
+              // Принудительно обновить профиль через Telegram WebApp (/webapp/init preferred)
+              try{
+                if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData){
+                  await fetch('/webapp/init', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({initData: window.Telegram.WebApp.initData})});
+                } else {
+                  await telegramExchange();
+                }
+              }catch(e){}
               await loadProfile();
             };
           }
           resolve();
+        }
+        // If WebApp is present, try server-side init to obtain verified photo/name and override
+        if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData){
+          try{
+            var resp2 = await fetch('/webapp/init', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({initData: window.Telegram.WebApp.initData})});
+            if(resp2 && resp2.ok){
+              var jw2 = await resp2.json();
+              if(jw2 && jw2.ok){
+                if(jw2.user && jw2.user.full_name) d.name = jw2.user.full_name;
+                if(jw2.user && jw2.user.username) d.username = jw2.user.username;
+                if(jw2.photo_url) { photo = jw2.photo_url; }
+              }
+            }
+          }catch(e){ console.warn('webapp init (post-me) failed', e); }
         }
         if(photo){
           var img = new Image();

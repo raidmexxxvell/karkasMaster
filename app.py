@@ -376,12 +376,29 @@ def webapp_init():
     user = {}
     photo_url = params.get('photo_url') or ''
     try:
-        uid = params.get('id') or params.get('user_id')
-        uid_int = int(uid) if uid and str(uid).isdigit() else None
-        user['id'] = uid_int
-        user['first_name'] = params.get('first_name')
-        user['last_name'] = params.get('last_name')
-        user['username'] = params.get('username')
+        # Telegram WebApp often sends `user` as a JSON-encoded string inside initData
+        user_json = None
+        if 'user' in params and params.get('user'):
+            try:
+                user_json = json.loads(params.get('user'))
+            except Exception:
+                user_json = None
+        if user_json:
+            uid_int = int(user_json.get('id')) if str(user_json.get('id') or '').isdigit() else None
+            user['id'] = uid_int
+            user['first_name'] = user_json.get('first_name')
+            user['last_name'] = user_json.get('last_name')
+            user['username'] = user_json.get('username')
+            # sometimes photo_url can be inside user object
+            if not photo_url:
+                photo_url = user_json.get('photo_url') or ''
+        else:
+            uid = params.get('id') or params.get('user_id')
+            uid_int = int(uid) if uid and str(uid).isdigit() else None
+            user['id'] = uid_int
+            user['first_name'] = params.get('first_name')
+            user['last_name'] = params.get('last_name')
+            user['username'] = params.get('username')
         user['full_name'] = ((user.get('first_name') or '') + (' ' + (user.get('last_name') or '') if user.get('last_name') else '')).strip()
         # If no photo_url supplied, try Bot API
         if not photo_url and bot and uid_int:
