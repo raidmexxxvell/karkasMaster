@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>{{ 'Создать' if not project else 'Редактировать' }} проект</h2>
+<form method="post">
+  <label>Заголовок: <input name="title" value="{{ project.title if project else '' }}"></label><br>
+  <label>Описание:<br><textarea name="description">{{ project.description if project else '' }}</textarea></label><br>
+  <label>Фото (main url): <input name="main_photo_url" value="{{ project.main_photo_url if project else '' }}"></label><br>
+  <label>Доп. фото (JSON array):<br><textarea name="extra_photos">{{ project.extra_photos_json if project else '[]' }}</textarea></label><br>
+  <button type="submit">Сохранить</button>
+</form>
+{% endblock %}

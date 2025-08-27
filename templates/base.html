@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Бот каркас{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+  <script src="/static/js/main.js"></script>
+</head>
+<body>
+<div class="container">
+  <header><h1>Бот каркас</h1></header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>Бот каркас — панель администрирования</footer>
+</div>
+</body>
+</html>

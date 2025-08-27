@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Чат проекта: {{ project.title }}</h2>
+<div id="chat" data-project-id="{{ project.id }}">
+  <div id="messages"></div>
+  <form id="msgform">
+    <input id="msgtext" placeholder="Сообщение...">
+    <button>Отправить</button>
+  </form>
+</div>
+{% endblock %}

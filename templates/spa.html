@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Встроенное приложение{% endblock %}
+{% block content %}
+<nav>
+  <button class="tab-link" data-tab="projects">Проекты</button>
+  <button class="tab-link" data-tab="profile">Мой профиль</button>
+  <button class="tab-link" data-tab="chats">Чаты</button>
+  <button class="tab-link" data-tab="help">Помощь</button>
+</nav>
+<section id="tab-projects" class="tab">
+  <h2>Проекты</h2>
+  <div id="projects-list">Загрузка...</div>
+</section>
+<section id="tab-profile" class="tab" style="display:none">
+  <h2>Мой профиль</h2>
+  <div id="profile-block">Загрузка профиля...</div>
+  <div id="telegram-login"></div>
+</section>
+<section id="tab-chats" class="tab" style="display:none">
+  <h2>Чаты</h2>
+  <div id="chats-block">Список чатов...</div>
+</section>
+<section id="tab-help" class="tab" style="display:none">
+  <h2>Помощь</h2>
+  <p>Инструкция по использованию бота и приложения.</p>
+</section>
+<script>
+// простая логика вкладок и загрузка профиля
+(function(){
+  function showTab(name){
+    document.querySelectorAll('.tab').forEach(el=>el.style.display='none');
+    document.getElementById('tab-'+name).style.display='block';
+    history.replaceState(null,'', '#'+name);
+  }
+  // Сначала читаем параметр st из URL (редирект после /auth/telegram)
+  var params = new URLSearchParams(window.location.search);
+  var urlSt = params.get('st') || params.get('token');
+  if(urlSt){
+    localStorage.setItem('st', urlSt);
+    // очищаем параметр из адресной строки
+    history.replaceState(null, '', window.location.pathname + window.location.hash);
+  }
+  var token = localStorage.getItem('st');
+  function loadProjects(){
+    fetch('/api/projects').then(r=>r.json()).then(arr=>{
+      const el = document.getElementById('projects-list'); el.innerHTML='';
+      arr.forEach(p=>{ const d=document.createElement('div'); d.innerHTML=`<h3>${p.title}</h3><p>${p.description}</p><button onclick="join(${p.id})">Прикрепиться</button>`; el.appendChild(d); });
+    });
+  }
+  window.join = function(id){
+    if(!token){ alert('Войдите через Telegram чтобы выполнить действие'); return; }
+    fetch(`/api/project/${id}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({telegram_id:token, text:'Пользователь через веб UI присоединился'})}).then(()=>alert('Запрос отправлен'));
+  }
+  function loadProfile(){
+    var el = document.getElementById('profile-block');
+    if(!token){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; return; }
+    fetch('/api/me?st='+token).then(r=>r.json()).then(d=>{ el.innerHTML = `<p>${d.name} (telegram_id: ${d.telegram_id})</p>`; });
+  }
+  window.addEventListener('load', ()=>{
+    var hash = location.hash.replace('#','') || 'projects';
+    showTab(hash);
+    document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', e=>{ showTab(e.target.dataset.tab); }));
+    loadProjects();
+    loadProfile();
+  });
+})();
+</script>
+{% endblock %}
