@@ -2,10 +2,10 @@
 {% block title %}Встроенное приложение{% endblock %}
 {% block content %}
 <nav>
-  <button class="tab-link" data-tab="projects">Проекты</button>
-  <button class="tab-link" data-tab="profile">Мой профиль</button>
-  <button class="tab-link" data-tab="chats">Чаты</button>
-  <button class="tab-link" data-tab="help">Помощь</button>
+  <button type="button" class="tab-link" data-tab="projects">Проекты</button>
+  <button type="button" class="tab-link" data-tab="profile">Мой профиль</button>
+  <button type="button" class="tab-link" data-tab="chats">Чаты</button>
+  <button type="button" class="tab-link" data-tab="help">Помощь</button>
 </nav>
 <section id="tab-projects" class="tab">
   <h2>Проекты</h2>
@@ -48,8 +48,9 @@
     });
   }
   window.join = function(id){
-    if(!token){ alert('Войдите через Telegram чтобы выполнить действие'); return; }
-    fetch(`/api/project/${id}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({telegram_id:token, text:'Пользователь через веб UI присоединился'})}).then(()=>alert('Запрос отправлен'));
+    var currentToken = localStorage.getItem('st');
+    if(!currentToken){ alert('Войдите через Telegram чтобы выполнить действие'); return; }
+    fetch(`/api/project/${id}/message`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({telegram_id:currentToken, text:'Пользователь через веб UI присоединился'})}).then(()=>alert('Запрос отправлен')).catch(()=>alert('Ошибка отправки'));
   }
   function loadProfile(){
     var el = document.getElementById('profile-block');
@@ -63,7 +64,7 @@
   window.addEventListener('load', ()=>{
     var hash = location.hash.replace('#','') || 'projects';
     showTab(hash);
-    document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', e=>{ showTab(e.target.dataset.tab); }));
+  document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', function(e){ showTab(this.dataset.tab); }));
     loadProjects();
     loadProfile();
   });

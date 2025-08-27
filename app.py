@@ -219,10 +219,17 @@ if bot:
         uid = message.from_user.id
         get_or_create_user(uid, message.from_user.full_name)
         if APP_URL:
+            import secrets
+            # create short-lived web token bound to this telegram user
+            st = secrets.token_urlsafe(16)
+            if redis_client:
+                # store minimal binding for web session
+                redis_client.setex(f'web_st:{st}', 3600, json.dumps({'telegram_id': str(uid), 'photo_url': ''}))
             kb = types.InlineKeyboardMarkup()
-            kb.add(types.InlineKeyboardButton('Открыть приложение', url=APP_URL))
-            kb.add(types.InlineKeyboardButton('Админ-панель (если вы админ)', callback_data='admin_panel'))
-            bot.send_message(uid, 'Откройте веб-приложение или используйте команды бота ниже.', reply_markup=kb)
+            # Use Telegram Web App button to open inside Telegram client
+            webinfo = types.WebAppInfo(f"{APP_URL}?st={st}")
+            kb.add(types.InlineKeyboardButton('Открыть приложение', web_app=webinfo))
+            bot.send_message(uid, 'Нажмите кнопку "Открыть приложение" — приложение откроется внутри Telegram.', reply_markup=kb)
         else:
             kb = types.ReplyKeyboardMarkup(row_width=2)
             kb.add('Проекты', 'Мой профиль')
