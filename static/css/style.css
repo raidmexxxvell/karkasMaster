@@ -1,13 +1,14 @@
 :root{
-	--bg:#ffffff;
-	--surface:#ffffff;
-	--muted:#666;
-	--text:#000000;
-	--border:#e6e6e6;
+	--bg-1:#0b1020;
+	--bg-2:#0f1724;
+	--surface:rgba(255,255,255,0.03);
+	--muted:rgba(255,255,255,0.7);
+	--text:#ffffff;
+	--border:rgba(255,255,255,0.06);
 }
 *{box-sizing:border-box}
-body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:0}
-.container{max-width:1000px;margin:28px auto;background:var(--surface);padding:22px;border-radius:8px;border:1px solid var(--border)}
+body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:linear-gradient(160deg,var(--bg-1),var(--bg-2));color:var(--text);margin:0;padding:0}
+.container{max-width:1000px;margin:28px auto;background:var(--surface);padding:22px;border-radius:8px;border:1px solid var(--border);backdrop-filter:blur(6px)}
 header h1{margin:0 0 14px;font-size:20px}
 nav{display:flex;gap:8px;margin-bottom:14px}
 button{background:#000;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
@@ -25,15 +26,15 @@ button.secondary{background:transparent;color:var(--text);border:1px solid var(-
 #msgform{margin-top:8px;display:flex;gap:8px}
 #msgtext{flex:1;padding:8px;border:1px solid var(--border);border-radius:6px}
 .profile{display:flex;gap:12px;align-items:center}
-.profile img{width:72px;height:72px;border-radius:999px;object-fit:cover;border:1px solid var(--border)}
+.profile img{width:72px;height:72px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,0.06)}
 .profile .meta{display:flex;flex-direction:column}
 .profile .name{font-weight:600}
 .profile .id{color:var(--muted);font-size:13px}
 .small{font-size:13px;color:var(--muted)}
 .footer{margin-top:18px;color:var(--muted);font-size:13px}
 /* Bottom navigation for mobile/webview */
-.bottom-nav{position:fixed;left:0;right:0;bottom:8px;display:flex;gap:8px;justify-content:center;padding:8px}
-.bottom-nav .tab-link{background:#000;color:#fff;border-radius:10px;padding:10px 14px;border:0}
+.bottom-nav{position:fixed;left:8px;right:8px;bottom:12px;display:flex;gap:8px;justify-content:center;padding:8px}
+.bottom-nav .tab-link{background:rgba(255,255,255,0.06);color:#fff;border-radius:10px;padding:10px 14px;border:0}
 .bottom-nav .tab-link:active{opacity:0.9}
-.bottom-nav .tab-link.active{box-shadow:0 4px 10px rgba(0,0,0,0.15);transform:translateY(-2px)}
+.bottom-nav .tab-link.active{box-shadow:0 8px 30px rgba(0,0,0,0.6);transform:translateY(-3px);background:linear-gradient(90deg,#ffffff22,#ffffff11)}
 .bottom-nav .tab-link span{display:block}
