@@ -533,4 +533,14 @@ if __name__ == '__main__':
             logger.info('Webhook установлен')
         except Exception as e:
             logger.exception('Не удалось установить webhook')
-    socketio.run(app, host='0.0.0.0', port=port)
+    # Если вы запускаете приложение напрямую (python app.py) в production,
+    # Flask-SocketIO ругается, потому что Werkzeug не предназначен для продакшена.
+    # Правильный способ для продакшена — запуск через gunicorn + eventlet/gevent.
+    # Тем не менее, для быстрых тестов можно установить переменную окружения
+    # ALLOW_UNSAFE_WERKZEUG=1 чтобы подавить ошибку (НЕ РЕКОМЕНДУЕТСЯ для PRODUCTION).
+    allow_unsafe = os.getenv('ALLOW_UNSAFE_WERKZEUG', '0') == '1'
+    if allow_unsafe:
+        logger.warning('Запуск с allow_unsafe_werkzeug=True. Это не безопасно для production.')
+        socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+    else:
+        socketio.run(app, host='0.0.0.0', port=port)
