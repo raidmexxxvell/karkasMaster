@@ -19,6 +19,18 @@
   <h2>Помощь</h2>
   <p>Инструкция по использованию бота и приложения.</p>
 </section>
+
+<!-- Splash / loading screen -->
+<div id="splash" aria-hidden="false" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:9999">
+  <div style="text-align:center;max-width:320px;width:100%">
+    <img src="/static/images/logo.png" alt="logo" style="width:120px;height:120px;margin:0 auto;display:block">
+    <div style="margin-top:12px;font-weight:600">Загрузка...</div>
+    <div style="margin-top:12px;background:#eee;border-radius:8px;padding:6px">
+      <div id="splash-bar" style="height:10px;background:#000;width:0%;border-radius:6px;transition:width 300ms ease"></div>
+    </div>
+    <div id="splash-percent" style="margin-top:8px;color:var(--muted)">0%</div>
+  </div>
+</div>
 <script>
 // простая логика вкладок и загрузка профиля
 (function(){
@@ -101,9 +113,27 @@
     showTab(hash);
     document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', function(e){ showTab(this.dataset.tab); }));
     loadProjects();
-    loadProfile();
+    // show splash while loading profile
+    runSplashLoad();
   });
 })();
+
+function runSplashLoad(){
+  var percent = 0;
+  var interval = setInterval(()=>{
+    percent = Math.min(100, percent + Math.floor(Math.random()*18));
+    document.getElementById('splash-bar').style.width = percent + '%';
+    document.getElementById('splash-percent').innerText = percent + '%';
+    if(percent >= 60){
+      // attempt to load profile data
+      loadProfile();
+    }
+    if(percent >= 100){
+      clearInterval(interval);
+      document.getElementById('splash').style.display = 'none';
+    }
+  }, 400);
+}
 </script>
 {% endblock %}
 

@@ -222,9 +222,22 @@ if bot:
             import secrets
             # create short-lived web token bound to this telegram user
             st = secrets.token_urlsafe(16)
+            # try to fetch user's profile photo and store a direct file URL
+            photo_url = ''
+            if bot:
+                try:
+                    photos = bot.get_user_profile_photos(uid)
+                    if photos and getattr(photos, 'total_count', 0) > 0:
+                        # take highest resolution of first photo
+                        sizes = photos.photos[0]
+                        file_obj = sizes[-1]
+                        file_info = bot.get_file(file_obj.file_id)
+                        photo_url = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}'
+                except Exception:
+                    logger.exception('Не удалось получить фото профиля')
             if redis_client:
                 # store minimal binding for web session
-                redis_client.setex(f'web_st:{st}', 3600, json.dumps({'telegram_id': str(uid), 'photo_url': ''}))
+                redis_client.setex(f'web_st:{st}', 3600, json.dumps({'telegram_id': str(uid), 'photo_url': photo_url}))
             kb = types.InlineKeyboardMarkup()
             # Use Telegram Web App button to open inside Telegram client
             webinfo = types.WebAppInfo(f"{APP_URL}?st={st}")
