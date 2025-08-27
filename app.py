@@ -104,7 +104,7 @@ class Activity(Base):
     actor_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     type = Column(String(64), default='note')  # note, task_created, status_changed, message
     text = Column(Text)
-    metadata = Column(Text)  # JSON as text for simple extensibility
+    metadata_json = Column(Text)  # JSON as text for simple extensibility
     created_at = Column(DateTime, default=datetime.utcnow)
     project = relationship('Project')
     actor = relationship('User')
@@ -727,7 +727,7 @@ def api_get_activities(pid):
         acts = session.query(Activity).filter_by(project_id=pid).order_by(Activity.created_at.desc()).limit(limit).all()
         out = []
         for a in acts:
-            out.append({'id': a.id, 'type': a.type, 'text': a.text, 'metadata': json.loads(a.metadata or '{}') if a.metadata else {}, 'actor': (a.actor.name if a.actor else None), 'created_at': a.created_at.isoformat()})
+            out.append({'id': a.id, 'type': a.type, 'text': a.text, 'metadata': json.loads(a.metadata_json or '{}') if a.metadata_json else {}, 'actor': (a.actor.name if a.actor else None), 'created_at': a.created_at.isoformat()})
         return jsonify(out)
     finally:
         session.close()
@@ -745,7 +745,7 @@ def api_create_activity(pid):
         actor = None
         if actor_tid:
             actor = get_or_create_user(actor_tid)
-        a = Activity(project_id=pid, actor_user_id=(actor.id if actor else None), type=typ, text=text, metadata=json.dumps(meta))
+        a = Activity(project_id=pid, actor_user_id=(actor.id if actor else None), type=typ, text=text, metadata_json=json.dumps(meta))
         session.add(a); session.commit()
         payload = {'id': a.id, 'project_id': pid, 'type': a.type, 'text': a.text, 'actor': actor.name if actor else None, 'created_at': a.created_at.isoformat()}
         socketio.emit('activity', payload, room=f'project_{pid}')
@@ -810,7 +810,7 @@ def api_tasks(pid):
             payload = {'id': t.id, 'title': t.title, 'status': t.status, 'assignee_id': (assignee.telegram_id if assignee else None), 'created_at': t.created_at.isoformat()}
             socketio.emit('task_created', payload, room=f'project_{pid}')
             # add an activity entry
-            a = Activity(project_id=pid, actor_user_id=(assignee.id if assignee else None), type='task_created', text=f'Task: {title}', metadata=json.dumps({'task_id': t.id}))
+            a = Activity(project_id=pid, actor_user_id=(assignee.id if assignee else None), type='task_created', text=f'Task: {title}', metadata_json=json.dumps({'task_id': t.id}))
             session.add(a); session.commit()
             # notify members
             members = session.query(Membership).filter_by(project_id=pid).all()
@@ -840,7 +840,7 @@ def api_update_task(tid):
         payload = {'id': t.id, 'title': t.title, 'status': t.status, 'assignee_id': (t.assignee.telegram_id if t.assignee else None)}
         socketio.emit('task_updated', payload, room=f'project_{t.project_id}')
         # activity log
-        a = Activity(project_id=t.project_id, actor_user_id=(t.assignee_id if t.assignee_id else None), type='task_updated', text=f'Task updated: {t.title}', metadata=json.dumps({'task_id': t.id}))
+        a = Activity(project_id=t.project_id, actor_user_id=(t.assignee_id if t.assignee_id else None), type='task_updated', text=f'Task updated: {t.title}', metadata_json=json.dumps({'task_id': t.id}))
         session.add(a); session.commit()
         # notify members
         members = session.query(Membership).filter_by(project_id=t.project_id).all()
