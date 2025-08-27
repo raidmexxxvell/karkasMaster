@@ -106,35 +106,77 @@
   }
 
   function loadProfile(){
-    return new Promise((resolve, reject)=>{
+    return new Promise(async (resolve, reject)=>{
       var el = document.getElementById('profile-block');
       var currentToken = localStorage.getItem('st');
-      if(!currentToken){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; resolve(); return; }
+      if(!currentToken){
+        // Попытка обмена через Telegram Web App
+        var newSt = await telegramExchange();
+        if(newSt){
+          currentToken = newSt;
+        } else {
+          el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>';
+          resolve();
+          return;
+        }
+      }
       fetch('/api/me?st='+currentToken).then(r=>r.json()).then(d=>{
         if(d.error){
-          try{
-            if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user){
-              var u = window.Telegram.WebApp.initDataUnsafe.user;
-              var name = (u.first_name||'') + (u.last_name?(' '+u.last_name):'');
-              el.innerHTML = `<div class="profile"><div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div><div class="meta"><div class="name">${name||'Пользователь'}</div><div class="id">telegram: ${u.id}</div></div></div>`;
-              localStorage.setItem('tg_id', u.id);
+          // Токен истек, попробуем обновить через Telegram Web App
+          telegramExchange().then(newSt=>{
+            if(newSt){
+              localStorage.setItem('st', newSt);
+              // Рекурсивно загрузить профиль с новым токеном
+              loadProfile().then(resolve).catch(reject);
             } else {
-              var st = localStorage.getItem('st');
-              if(st && /^\d+$/.test(st)){
-                el.innerHTML = `<div class="profile"><div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div><div class="meta"><div class="name">Пользователь</div><div class="id">telegram: ${st}</div></div></div>`;
-                localStorage.setItem('tg_id', st);
-              } else {
-                el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>';
-              }
+              try{
+                if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user){
+                  var u = window.Telegram.WebApp.initDataUnsafe.user;
+                  var name = (u.first_name||'') + (u.last_name?(' '+u.last_name):'');
+                  var status = '<div class="small" style="color: green;">● Онлайн через Telegram</div>';
+                  el.innerHTML = `<div class="profile"><div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div><div class="meta"><div class="name">${name||'Пользователь'}</div><div class="id">telegram: ${u.id}</div>${status}</div></div>`;
+                  localStorage.setItem('tg_id', u.id);
+                } else {
+                  var st = localStorage.getItem('st');
+                  if(st && /^\d+$/.test(st)){
+                    var status = '<div class="small" style="color: green;">● Онлайн через Telegram</div>';
+                    el.innerHTML = `<div class="profile"><div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div><div class="meta"><div class="name">Пользователь</div><div class="id">telegram: ${st}</div>${status}</div></div>`;
+                    localStorage.setItem('tg_id', st);
+                  } else {
+                    el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>';
+                  }
+                }
+              }catch(e){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; }
+              resolve();
             }
-          }catch(e){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; }
-          resolve(); return;
+          }).catch(()=>{
+            el.innerHTML = '<div class="small">Не удалось загрузить профиль</div>';
+            resolve();
+          });
+          return;
         }
         var photo = d.photo_url || '';
         var first = d.first_seen ? new Date(d.first_seen).toLocaleString() : '';
         function applyProfile(src){
-          el.innerHTML = `<div class="profile">` + (src?`<img src="${src}" alt="avatar">`:`<div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div>`) + `<div class="meta"><div class="name">${d.name || 'Пользователь'}</div><div class="id">telegram: ${d.telegram_id}</div><div class="small">Первый вход: ${first}</div></div></div>`;
+          var status = '';
+          if(window.Telegram && window.Telegram.WebApp){
+            status = '<div class="small" style="color: green;">● Онлайн через Telegram</div>';
+          }
+          var username = d.username ? `<div class=\"small\">@${d.username}</div>` : '';
+          var updateBtn = `<button id=\"update-photo-btn\" style=\"margin-top:8px;\">Обновить фото</button>`;
+          el.innerHTML = `<div class=\"profile\">` + (src?`<img src=\"${src}\" alt=\"avatar\">`:`<div style=\"width:72px;height:72px;border-radius:999px;background:#efefef\"></div>`) + `<div class=\"meta\"><div class=\"name\">${d.name || 'Пользователь'}</div>${username}<div class=\"id\">telegram: ${d.telegram_id}</div><div class=\"small\">Первый вход: ${first}</div>${status}${updateBtn}</div></div>`;
           if(d.telegram_id) localStorage.setItem('tg_id', d.telegram_id);
+          // Кнопка обновления фото
+          var btn = document.getElementById('update-photo-btn');
+          if(btn){
+            btn.onclick = async function(){
+              btn.disabled = true;
+              btn.textContent = 'Обновление...';
+              // Принудительно обновить профиль через Telegram WebApp
+              await telegramExchange();
+              await loadProfile();
+            };
+          }
           resolve();
         }
         if(photo){
@@ -161,6 +203,18 @@
     document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', function(e){ showTab(this.dataset.tab); }));
     loadProjects();
     await runSplashLoad();
+
+    // Обработчик кнопки обновления профиля
+    var refreshBtn = document.getElementById('refresh-profile');
+    if(refreshBtn){
+      refreshBtn.addEventListener('click', async ()=>{
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'Обновление...';
+        await loadProfile();
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Обновить профиль';
+      });
+    }
   });
   async function runSplashLoad(){
     var bar = document.getElementById('splash-bar');

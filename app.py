@@ -243,7 +243,7 @@ if bot:
                     logger.exception('Не удалось получить фото профиля')
             if redis_client:
                 # store minimal binding for web session
-                redis_client.setex(f'web_st:{st}', 3600, json.dumps({'telegram_id': str(uid), 'photo_url': photo_url}))
+                redis_client.setex(f'web_st:{st}', 86400, json.dumps({'telegram_id': str(uid), 'photo_url': photo_url}))
             kb = types.InlineKeyboardMarkup()
             # Use Telegram Web App button to open inside Telegram client
             webinfo = types.WebAppInfo(f"{APP_URL}?st={st}")
@@ -425,6 +425,19 @@ def auth_telegram():
     st = secrets.token_urlsafe(16)
     telegram_id = data.get('id')
     name = (data.get('first_name') or '') + ((' ' + data.get('last_name')) if data.get('last_name') else '')
+    username = data.get('username') or ''
+    photo_url = data.get('photo_url') or ''
+    # Если photo_url не пришёл, пробуем получить через Bot API
+    if not photo_url and bot and telegram_id:
+        try:
+            photos = bot.get_user_profile_photos(telegram_id)
+            if photos and getattr(photos, 'total_count', 0) > 0:
+                sizes = photos.photos[0]
+                file_obj = sizes[-1]
+                file_info = bot.get_file(file_obj.file_id)
+                photo_url = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}'
+        except Exception:
+            logger.exception('Не удалось получить фото профиля через Bot API')
     session = SessionLocal()
     try:
         u = session.query(User).filter_by(telegram_id=str(telegram_id)).first()
@@ -432,11 +445,19 @@ def auth_telegram():
             role = session.query(Role).filter_by(name='user').first()
             u = User(telegram_id=str(telegram_id), name=name, role=role)
             session.add(u); session.commit()
+        # Можно добавить сохранение username, если нужно
+        if u and username and (not hasattr(u, 'username') or getattr(u, 'username', None) != username):
+            try:
+                setattr(u, 'username', username)
+                session.commit()
+            except Exception:
+                pass
     finally:
         session.close()
     if redis_client:
-        redis_client.setex(f'web_st:{st}', 3600, json.dumps({'telegram_id': str(telegram_id), 'photo_url': data.get('photo_url') or ''}))
+        redis_client.setex(f'web_st:{st}', 86400, json.dumps({'telegram_id': str(telegram_id), 'photo_url': photo_url, 'username': username}))
     return jsonify({'ok': True, 'st': st})
+
 
 @app.route('/api/me')
 def api_me():
@@ -445,6 +466,7 @@ def api_me():
         return jsonify({'error':'not authenticated'}), 401
     val = redis_client.get(f'web_st:{st}')
     if not val:
+        logger.warning(f'Invalid or expired token: {st}')
         return jsonify({'error':'invalid token'}), 401
     raw = val.decode() if isinstance(val, bytes) else val
     try:
@@ -453,6 +475,7 @@ def api_me():
         obj = {'telegram_id': raw, 'photo_url': ''}
     tid = obj.get('telegram_id')
     photo = obj.get('photo_url')
+    username = obj.get('username')
     if not tid:
         return jsonify({'error':'no telegram_id bound'}), 401
     session = SessionLocal()
@@ -466,7 +489,7 @@ def api_me():
             first_seen = datetime.utcnow().isoformat()
             obj['first_seen'] = first_seen
             try:
-                redis_client.setex(f'web_st:{st}', 3600, json.dumps(obj))
+                redis_client.setex(f'web_st:{st}', 86400, json.dumps(obj))
             except Exception:
                 logger.exception('Не удалось обновить web_st с first_seen')
         # mirror photo into DB (UserPhoto) to allow avatar API and caching
@@ -490,7 +513,7 @@ def api_me():
                     dbp.close()
         except Exception:
             logger.exception('Mirror user photo failed')
-        return jsonify({'telegram_id': u.telegram_id, 'name': u.name or '', 'photo_url': photo, 'first_seen': first_seen})
+        return jsonify({'telegram_id': u.telegram_id, 'name': u.name or '', 'photo_url': photo, 'first_seen': first_seen, 'username': username})
     finally:
         session.close()
 
