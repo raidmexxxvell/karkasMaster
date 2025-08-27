@@ -1,0 +1,26 @@
+# Render Blueprint for deploying the Telegram bot + web panel
+# Replace placeholders in the Render dashboard with real secrets/values.
+services:
+  - type: web
+    name: telegram-projects-bot
+    env: python
+    plan: starter
+    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -k eventlet -w 1 app:app"
+    autoDeploy: true
+    disk: 512
+    instanceCount: 1
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OWNER_TELEGRAM_ID
+        sync: false
+      - key: INITIAL_ADMINS
+        sync: false
+      - key: APP_URL
+        sync: false
