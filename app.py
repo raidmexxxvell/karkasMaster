@@ -14,6 +14,9 @@ from flask import Flask, request, redirect, url_for, abort, render_template, jso
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import telebot
 from telebot import types
+import hmac
+import hashlib
+import urllib.parse
 from sqlalchemy import (create_engine, Column, Integer, String, Text, DateTime, ForeignKey)
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 import redis
@@ -331,6 +334,75 @@ def index():
 def api_projects():
     projs = get_projects_cached()
     return jsonify(projs)
+
+
+# WebApp initData validation helper and route
+def validate_init_data(init_data: str, bot_token: str):
+    """
+    Validate Telegram WebApp initData (signed payload).
+    Returns (valid: bool, params: dict).
+    """
+    try:
+        if not init_data or not bot_token:
+            return False, {}
+        # parse query-string like payload
+        params = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
+        hash_val = params.pop('hash', None)
+        if not hash_val:
+            return False, params
+        check_list = []
+        for k in sorted(params.keys()):
+            check_list.append(f"{k}={params[k]}")
+        data_check_string = '\n'.join(check_list)
+        secret_key = hashlib.sha256(bot_token.encode()).digest()
+        hmac_value = hmac.new(secret_key, msg=data_check_string.encode(), digestmod=hashlib.sha256).hexdigest()
+        valid = hmac.compare_digest(hmac_value, hash_val)
+        return valid, params
+    except Exception:
+        logger.exception('validate_init_data error')
+        return False, {}
+
+
+@app.route('/webapp/init', methods=['POST'])
+def webapp_init():
+    """Accepts JSON { initData: string } from Telegram WebApp, validates signature,
+    and tries to fetch user avatar via Bot API. Returns { ok, user, photo_url }.
+    """
+    payload = request.json or {}
+    init_data = payload.get('initData') or ''
+    ok, params = validate_init_data(init_data, BOT_TOKEN or '')
+    if not ok:
+        return jsonify({'ok': False, 'error': 'invalid initData'}), 403
+    user = {}
+    photo_url = params.get('photo_url') or ''
+    try:
+        uid = params.get('id') or params.get('user_id')
+        uid_int = int(uid) if uid and str(uid).isdigit() else None
+        user['id'] = uid_int
+        user['first_name'] = params.get('first_name')
+        user['last_name'] = params.get('last_name')
+        user['username'] = params.get('username')
+        user['full_name'] = ((user.get('first_name') or '') + (' ' + (user.get('last_name') or '') if user.get('last_name') else '')).strip()
+        # If no photo_url supplied, try Bot API
+        if not photo_url and bot and uid_int:
+            try:
+                photos = bot.get_user_profile_photos(uid_int)
+                if photos and getattr(photos, 'total_count', 0) > 0:
+                    sizes = photos.photos[0]
+                    file_obj = sizes[-1]
+                    file_info = bot.get_file(file_obj.file_id)
+                    photo_url = f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}'
+            except Exception:
+                logger.exception('Не удалось получить фото профиля через Bot API (webapp/init)')
+        return jsonify({'ok': True, 'user': user, 'photo_url': photo_url})
+    except Exception:
+        logger.exception('webapp/init processing error')
+        return jsonify({'ok': False, 'error': 'server_error'}), 500
+
+
+@app.route('/profile')
+def profile_page():
+    return render_template('profile.html')
 
 def require_admin_token():
     token = request.args.get('token')
