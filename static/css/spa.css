@@ -1,0 +1,15 @@
+/* SPA-specific styles: splash and bottom navigation */
+#splash{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(2,6,23,0.9));z-index:9999}
+#splash .splash-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px}
+#splash .splash-logo{width:120px;height:120px;object-fit:contain}
+#splash .splash-title{font-size:20px;font-weight:700;color:var(--text)}
+#splash .splash-bar-wrap{background:rgba(255,255,255,0.03);height:12px;border-radius:999px;width:260px;padding:3px;margin-top:8px}
+#splash .splash-bar{height:12px;background:linear-gradient(90deg,#7c3aed,#06b6d4);width:0%;border-radius:999px;transition:width 700ms cubic-bezier(.2,.9,.1,1)}
+#splash .splash-percent{margin-top:6px;color:var(--muted)}
+
+/* Bottom navigation for mobile/webview (improved) */
+.bottom-nav{position:fixed;left:12px;right:12px;bottom:18px;display:flex;gap:10px;justify-content:center;padding:10px;pointer-events:auto}
+.bottom-nav .tab-link{background:rgba(255,255,255,0.03);color:#fff;border-radius:12px;padding:10px 14px;border:0;min-width:80px;text-align:center}
+.bottom-nav .tab-link:active{opacity:0.95}
+.bottom-nav .tab-link.active{box-shadow:0 10px 30px rgba(0,0,0,0.6);transform:translateY(-4px);background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))}
+.bottom-nav .tab-link span{display:block}
