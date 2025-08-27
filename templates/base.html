@@ -9,6 +9,15 @@
   <script src="/static/js/main.js"></script>
 </head>
 <body>
+<!-- Full-screen splash overlay (moved here so it covers whole viewport) -->
+<div id="splash" aria-hidden="false">
+  <div class="splash-inner">
+    <img src="/static/images/logo.png" alt="logo" class="splash-logo">
+    <div class="splash-title">Загрузка...</div>
+    <div class="splash-bar-wrap"><div id="splash-bar" class="splash-bar"></div></div>
+    <div id="splash-percent" class="splash-percent">0%</div>
+  </div>
+</div>
 <div class="container">
   <header><h1>Бот каркас</h1></header>
   <div style="position:absolute;top:12px;right:24px"><span id="notify-badge" style="display:none;background:#ef4444;color:#fff;padding:6px 8px;border-radius:999px;font-weight:700;font-size:13px">0</span></div>
@@ -16,6 +25,14 @@
     {% block content %}{% endblock %}
   </main>
   <footer>Бот каркас — панель администрирования</footer>
+
+  <!-- Глобальное нижнее меню: плитки навигации для WebApp (внутри контейнера -> наследует ширину) -->
+  <nav class="bottom-nav" id="global-bottom-nav" role="tablist" aria-label="Основная навигация">
+    <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="projects" aria-controls="tab-projects"><span>Проекты</span></button>
+    <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="profile" aria-controls="tab-profile"><span>Мой профиль</span></button>
+    <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="chats" aria-controls="tab-chats"><span>Чаты</span></button>
+    <button type="button" role="tab" aria-selected="false" class="tab-link" data-tab="help" aria-controls="tab-help"><span>Помощь</span></button>
+  </nav>
 </div>
 
 <!-- Глобальное нижнее меню: плитки навигации для WebApp -->

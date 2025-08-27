@@ -13,6 +13,8 @@
     panels.forEach(el=>{
       el.classList.remove('enter-left','enter-right','active-slide');
       el.setAttribute('aria-hidden','true');
+      // explicitly hide to avoid CSS/inline-style conflicts
+      try{ el.style.display = 'none'; }catch(e){}
     });
     var panel = document.getElementById('tab-'+name);
     if(panel){
@@ -22,7 +24,7 @@
         var idxOld = Array.from(document.querySelectorAll('.tab-link')).findIndex(b=>b.classList.contains('active'));
         if(idxOld>=0 && idxNew>=0){ dir = (idxNew < idxOld)? 'left':'right'; }
       }catch(e){ }
-      panel.style.display='block';
+  panel.style.display='block';
       panel.classList.add(dir==='left' ? 'enter-left' : 'enter-right');
       // force reflow then activate
       void panel.offsetWidth;
@@ -412,6 +414,8 @@
     showTab(hash);
     document.querySelectorAll('.tab-link').forEach(btn=>btn.addEventListener('click', function(e){ showTab(this.dataset.tab); }));
     loadProjects();
+  // Ensure splash overlay blocks body scroll while visible
+  try{ if(document.getElementById('splash')) document.body.classList.add('splash-open'); }catch(e){}
   await runSplashLoad();
 
     // Обработчик кнопки обновления профиля

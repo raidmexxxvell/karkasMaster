@@ -38,21 +38,23 @@ body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-heig
 .bottom-nav{
 	position:fixed;
 	bottom:12px;
-	left:50%;
-	transform:translateX(-50%);
+	/* we'll position horizontally from JS to match .container left/width */
+	left:0;
+	right:0;
 	display:flex;
 	gap:8px;
 	justify-content:center;
 	padding:8px;
 	pointer-events:auto;
-	/* keep nav within app container width and never exceed viewport */
-	max-width:var(--container-max-width);
-	width:min(100%, calc(var(--container-max-width)) );
+	/* keep nav responsive: never exceed viewport width and be constrained by JS positioning */
+	max-width:100%;
+	width:auto;
 	box-sizing:border-box;
 	border-radius:12px;
 	background:linear-gradient(180deg, rgba(10,12,16,0.6), rgba(6,8,12,0.55));
 	backdrop-filter:blur(6px);
 	box-shadow:0 10px 30px rgba(0,0,0,0.45);
+	z-index:9999;
 }
 .bottom-nav .tab-link{
 	background:rgba(255,255,255,0.03);
