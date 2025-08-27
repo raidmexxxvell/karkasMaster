@@ -379,7 +379,7 @@ def auth_telegram():
         st = secrets.token_urlsafe(12)
         tid = request.args.get('telegram_id')
         if redis_client:
-            redis_client.setex(f'web_st:{st}', 300, tid or '')
+            redis_client.setex(f'web_st:{st}', 300, json.dumps({'telegram_id': tid or '', 'photo_url': ''}))
         return redirect(url_for('index') + f'?st={st}')
     # POST: validate Telegram Login widget data
     data = request.json or {}
@@ -409,7 +409,7 @@ def auth_telegram():
     finally:
         session.close()
     if redis_client:
-        redis_client.setex(f'web_st:{st}', 3600, str(telegram_id))
+        redis_client.setex(f'web_st:{st}', 3600, json.dumps({'telegram_id': str(telegram_id), 'photo_url': data.get('photo_url') or ''}))
     return jsonify({'ok': True, 'st': st})
 
 @app.route('/api/me')
@@ -420,7 +420,13 @@ def api_me():
     val = redis_client.get(f'web_st:{st}')
     if not val:
         return jsonify({'error':'invalid token'}), 401
-    tid = val.decode() if isinstance(val, bytes) else val
+    raw = val.decode() if isinstance(val, bytes) else val
+    try:
+        obj = json.loads(raw)
+    except Exception:
+        obj = {'telegram_id': raw, 'photo_url': ''}
+    tid = obj.get('telegram_id')
+    photo = obj.get('photo_url')
     if not tid:
         return jsonify({'error':'no telegram_id bound'}), 401
     session = SessionLocal()
@@ -428,7 +434,7 @@ def api_me():
         u = session.query(User).filter_by(telegram_id=str(tid)).first()
         if not u:
             return jsonify({'error':'user not found'}), 404
-        return jsonify({'telegram_id': u.telegram_id, 'name': u.name or ''})
+        return jsonify({'telegram_id': u.telegram_id, 'name': u.name or '', 'photo_url': photo})
     finally:
         session.close()
 

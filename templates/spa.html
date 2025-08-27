@@ -54,7 +54,11 @@
   function loadProfile(){
     var el = document.getElementById('profile-block');
     if(!token){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; return; }
-    fetch('/api/me?st='+token).then(r=>r.json()).then(d=>{ el.innerHTML = `<p>${d.name} (telegram_id: ${d.telegram_id})</p>`; });
+    fetch('/api/me?st='+token).then(r=>r.json()).then(d=>{
+      if(d.error){ el.innerHTML = '<a href="/auth/telegram?next=/">Войти через Telegram</a>'; return; }
+      var photo = d.photo_url || '';
+      el.innerHTML = `<div class="profile">` + (photo?`<img src="${photo}" alt="avatar">`:`<div style="width:72px;height:72px;border-radius:999px;background:#efefef"></div>`) + `<div class="meta"><div class="name">${d.name || 'Пользователь'}</div><div class="id">telegram: ${d.telegram_id}</div></div></div>`;
+    }).catch(()=>{ el.innerHTML = '<div class="small">Не удалось загрузить профиль</div>'; });
   }
   window.addEventListener('load', ()=>{
     var hash = location.hash.replace('#','') || 'projects';
