@@ -9,7 +9,7 @@
 }
 *{box-sizing:border-box}
 body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:linear-gradient(160deg,var(--bg-1),var(--bg-2));color:var(--text);margin:0;padding:0}
-.container{max-width:var(--container-max-width);margin:28px auto;background:var(--surface);padding:22px;border-radius:8px;border:1px solid var(--border);backdrop-filter:blur(6px);transition:padding-bottom 240ms ease}
+.container{max-width:var(--container-max-width);margin:28px auto;background:var(--surface);padding:22px;border-radius:8px;border:1px solid var(--border);backdrop-filter:blur(6px);transition:padding-bottom 240ms ease;position:relative;min-height:calc(100vh - 120px);box-sizing:border-box}
 header h1{margin:0 0 14px;font-size:20px}
 nav{display:flex;gap:8px;margin-bottom:14px}
 button{background:#000;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}

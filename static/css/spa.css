@@ -35,7 +35,7 @@ body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-heig
 
 /* Bottom navigation for mobile/webview (tile style) */
 .bottom-nav{
-	position:fixed;
+	position:absolute;
 	bottom:12px;
 	/* center and constrain to container width (variable comes from style.css) */
 	left:50%;
