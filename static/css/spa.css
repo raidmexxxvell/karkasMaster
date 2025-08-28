@@ -3,7 +3,6 @@
 	--spa-transition: 260ms;
 	--spa-ease: cubic-bezier(.2,.9,.1,1);
 	--bottom-nav-height: 0px; /* updated by JS when nav mounts */
-	--container-max-width: 1000px; /* keep in sync with .container max-width */
 }
 
 /* Full-screen splash overlay */
@@ -38,17 +37,16 @@ body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-heig
 .bottom-nav{
 	position:fixed;
 	bottom:12px;
-	/* we'll position horizontally from JS to match .container left/width */
-	left:0;
-	right:0;
+	/* center and constrain to container width (variable comes from style.css) */
+	left:50%;
+	transform:translateX(-50%);
 	display:flex;
 	gap:8px;
 	justify-content:center;
 	padding:8px;
 	pointer-events:auto;
-	/* keep nav responsive: never exceed viewport width and be constrained by JS positioning */
-	max-width:100%;
-	width:auto;
+	max-width:var(--container-max-width);
+	width:calc(min(100%, var(--container-max-width) - 32px));
 	box-sizing:border-box;
 	border-radius:12px;
 	background:linear-gradient(180deg, rgba(10,12,16,0.6), rgba(6,8,12,0.55));
