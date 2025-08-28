@@ -54,6 +54,17 @@ body.with-bottom-nav .container{padding-bottom:calc(22px + var(--bottom-nav-heig
 	box-shadow:0 10px 30px rgba(0,0,0,0.45);
 	z-index:9999;
 }
+
+@media (max-width: 600px) {
+	.bottom-nav {
+		left: 0;
+		right: 0;
+		width: 100vw;
+		max-width: 100vw;
+		border-radius: 0;
+		transform: none;
+	}
+}
 .bottom-nav .tab-link{
 	background:rgba(255,255,255,0.03);
 	color:var(--text);

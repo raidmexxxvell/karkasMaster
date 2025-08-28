@@ -235,10 +235,10 @@
       try{
         if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user){
           var u = window.Telegram.WebApp.initDataUnsafe.user;
-          var name = (u.first_name||'') + (u.last_name?(' '+u.last_name):'');
+          var name = u.full_name || ((u.first_name||'') + (u.last_name?(' '+u.last_name):''));
           var usernameHtml = u.username ? `<div class="small">@${u.username}</div>` : '';
           var photo = u.photo_url || '/static/images/avatar.png';
-          el.innerHTML = `<div class="profile"><div class="avatar-wrap"><div class="skeleton circle" id="skeleton-avatar" style="width:72px;height:72px"></div><img id="profile-avatar-img" style="display:none;width:72px;height:72px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,0.06)" src="${photo}" alt="avatar"></div><div class="meta"><div class="name">${name||'Пользователь'}</div>${usernameHtml}<div class="id">telegram: ${u.id}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
+          el.innerHTML = `<div class="profile"><div class="avatar-wrap"><div class="skeleton circle" id="skeleton-avatar" style="width:72px;height:72px"></div><img id="profile-avatar-img" style="display:none;width:72px;height:72px;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,0.06)" src="${photo}" alt="avatar"></div><div class="meta"><div class="name">${name||u.username||u.id||''}</div>${usernameHtml}<div class="id">telegram: ${u.id}</div><div class="small" style="color: green;">● Онлайн через Telegram</div></div></div>`;
           // replace skeleton when loaded
           loadImageWithSkeleton(document.getElementById('profile-avatar-img'), document.getElementById('skeleton-avatar'));
           try{ if(u.id) localStorage.setItem('tg_id', u.id); }catch(e){}
@@ -319,7 +319,8 @@
           }
           var username = d.username ? `<div class=\"small\">@${d.username}</div>` : '';
           var updateBtn = `<button id=\"update-photo-btn\" style=\"margin-top:8px;\">Обновить фото</button>`;
-          el.innerHTML = `<div class=\"profile\">` + (src?`<img src=\"${src}\" alt=\"avatar\">`:`<div style=\"width:72px;height:72px;border-radius:999px;background:#efefef\"></div>`) + `<div class=\"meta\"><div class=\"name\">${d.name || 'Пользователь'}</div>${username}<div class=\"id\">telegram: ${d.telegram_id}</div><div class=\"small\">Первый вход: ${first}</div>${status}${updateBtn}</div></div>`;
+          var displayName = d.full_name || d.name || d.first_name || d.username || d.telegram_id || '';
+          el.innerHTML = `<div class=\"profile\">` + (src?`<img src=\"${src}\" alt=\"avatar\">`:`<div style=\"width:72px;height:72px;border-radius:999px;background:#efefef\"></div>`) + `<div class=\"meta\"><div class=\"name\">${displayName}</div>${username}<div class=\"id\">telegram: ${d.telegram_id}</div><div class=\"small\">Первый вход: ${first}</div>${status}${updateBtn}</div></div>`;
           if(d.telegram_id) localStorage.setItem('tg_id', d.telegram_id);
           // Кнопка обновления фото
           var btn = document.getElementById('update-photo-btn');
